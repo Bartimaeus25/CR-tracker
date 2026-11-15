@@ -178,6 +178,8 @@ export function playerStats(matches: Match[], tag: string) {
     losses,
     draws,
     winRate: scored.length ? (wins / scored.length) * 100 : null,
+    crowns: games.reduce((sum, game) => sum + game.crowns, 0),
+    conceded: games.reduce((sum, game) => sum + game.conceded, 0),
     averageCrowns: games.length
       ? games.reduce((sum, game) => sum + game.crowns, 0) / games.length
       : null,
@@ -371,4 +373,150 @@ export function rollingWinRates(
     }
   }
   return [...points.values()].sort((left, right) => left.time - right.time);
+}
+
+/** Game-level records: a duel contributes each round once, never its aggregate deck. */
+export function advancedStats(matches: Match[], tag: string) {
+  const recorded = playerMatches(matches, tag);
+  const scored = recorded.flatMap((match) => {
+    const view = perspective(match, tag);
+    return view?.result ? [{ match, view }] : [];
+  });
+  const games = scored.flatMap(({ view }) => view.games);
+  const eligible = scored
+    .filter(({ match }) => allowsDeckAnalysis(match))
+    .flatMap(({ view }) => view.games)
+    .filter((game) => deckKey(game.cards));
+  type RecordStats = {
+    key: string;
+    cards: Card[];
+    played: number;
+    wins: number;
+    losses: number;
+    draws: number;
+    winRate: number;
+  };
+  const cards = new Map<string, RecordStats>();
+  const pairs = new Map<string, RecordStats>();
+  const add = (
+    groups: Map<string, RecordStats>,
+    groupCards: Card[],
+    result: Result,
+  ) => {
+    const sorted = [...groupCards].sort((a, b) => a.id - b.id);
+    const key = sorted.map((card) => card.id).join("-");
+    const row = groups.get(key) ?? {
+      key,
+      cards: sorted,
+      played: 0,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      winRate: 0,
+    };
+    row.played++;
+    if (result === "win") row.wins++;
+    if (result === "loss") row.losses++;
+    if (result === "draw") row.draws++;
+    row.winRate = (row.wins / row.played) * 100;
+    groups.set(key, row);
+  };
+  for (const game of eligible) {
+    for (const [index, card] of game.cards.entries()) {
+      add(cards, [card], game.result);
+      for (const second of game.cards.slice(index + 1))
+        add(pairs, [card, second], game.result);
+    }
+  }
+  const rank = (groups: Map<string, RecordStats>) =>
+    [...groups.values()].sort(
+      (a, b) =>
+        b.winRate - a.winRate ||
+        b.played - a.played ||
+        a.key.localeCompare(b.key),
+    );
+  const modes = new Map<
+    string,
+    {
+      key: string;
+      name: string;
+      played: number;
+      scored: number;
+      wins: number;
+      losses: number;
+      draws: number;
+      crowns: number;
+      conceded: number;
+      games: number;
+    }
+  >();
+  for (const match of recorded) {
+    // Keep distinct API modes separate even when their friendly labels match.
+    const key = `${match.type}/${match.modeId ?? match.rawMode}`;
+    const row = modes.get(key) ?? {
+      key,
+      name: `${match.mode}${match.rawMode ? ` · ${match.rawMode.replaceAll("_", " ")}` : ""}`,
+      played: 0,
+      scored: 0,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      crowns: 0,
+      conceded: 0,
+      games: 0,
+    };
+    row.played++;
+    const view = perspective(match, tag);
+    if (view?.result) {
+      row.scored++;
+      if (view.result === "win") row.wins++;
+      if (view.result === "loss") row.losses++;
+      if (view.result === "draw") row.draws++;
+      for (const game of view.games) {
+        row.crowns += game.crowns;
+        row.conceded += game.conceded;
+        row.games++;
+      }
+    }
+    modes.set(key, row);
+  }
+  const duels = scored.filter(({ match }) => match.isDuel);
+  return {
+    cards: rank(cards),
+    pairs: rank(pairs),
+    eligibleGames: eligible.length,
+    baseline: eligible.length
+      ? (eligible.filter((game) => game.result === "win").length /
+          eligible.length) *
+        100
+      : null,
+    modes: [...modes.values()].sort(
+      (a, b) => b.played - a.played || a.key.localeCompare(b.key),
+    ),
+    games: games.length,
+    crowns: games.reduce((sum, game) => sum + game.crowns, 0),
+    conceded: games.reduce((sum, game) => sum + game.conceded, 0),
+    shutouts: games.filter(
+      (game) => game.result === "win" && game.conceded === 0,
+    ).length,
+    threeCrowns: games.filter(
+      (game) => game.result === "win" && game.crowns === 3,
+    ).length,
+    comebacks: duels.filter(
+      ({ view }) => view.result === "win" && view.games[0].result === "loss",
+    ).length,
+    deciders: duels
+      .filter(
+        ({ view }) =>
+          view.games.length === 3 &&
+          view.games.slice(0, 2).filter((game) => game.result === "win")
+            .length === 1 &&
+          view.games.slice(0, 2).filter((game) => game.result === "loss")
+            .length === 1,
+      )
+      .map(({ view }) => view.games[2].result),
+    closestWins: games.filter(
+      (game) => game.result === "win" && game.crowns - game.conceded === 1,
+    ).length,
+  };
 }

@@ -411,6 +411,10 @@ export function Comparison({ data }: { data: DashboardData }) {
       ),
     },
     {
+      label: "Total crowns earned / conceded",
+      values: stats.map((value) => `${value.crowns} / ${value.conceded}`),
+    },
+    {
       label: "Three-crown games won",
       values: stats.map((value) => displayNumber(value.threeCrowns)),
     },
@@ -692,6 +696,12 @@ export function DataNotes({ data }: { data: DashboardData }) {
           unordered card IDs, independent of levels. Draft, random, mirror, and
           preset event decks are excluded from deck analytics. Matchup samples
           need at least three scored matches and describe observations only.
+          Card and pair records use individual games and duel rounds, with a
+          selectable minimum of three or more appearances. Samples below ten are
+          early observations; a pair’s win rate describes its whole deck and
+          does not prove synergy. Mode win rates use matches or duel series.
+          Crown totals use individual games and rounds. Damage cannot be
+          calculated from remaining tower HP alone.
         </p>
         <p>
           The API supplies a recent battle window. Earlier matches are available

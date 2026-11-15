@@ -3,6 +3,7 @@ import test from "node:test";
 import { z } from "zod";
 import {
   averageElixir,
+  advancedStats,
   deckKey,
   deckStats,
   headToHead,
@@ -314,6 +315,103 @@ test("rolling rates expose sample sizes and use only preceding scored matches", 
   assert.equal(points[2].first, 0);
   assert.equal(points[2].second, 50);
   assert.equal(points[2].firstSample, 2);
+});
+
+test("advanced records count each duel round, crowns and comeback once per player", () => {
+  const battle = duel("comeback", 1, [
+    [0, 1],
+    [3, 0],
+    [1, 0],
+  ]);
+  const first = advancedStats([battle, battle], firstTag);
+  const second = advancedStats([battle], secondTag);
+  assert.equal(first.games, 3);
+  assert.equal(first.crowns, 4);
+  assert.equal(first.conceded, 1);
+  assert.equal(second.crowns, first.conceded);
+  assert.equal(second.conceded, first.crowns);
+  assert.equal(first.comebacks, 1);
+  assert.equal(second.comebacks, 0);
+  assert.deepEqual(first.deciders, ["win"]);
+  assert.deepEqual(second.deciders, ["loss"]);
+  assert.equal(first.shutouts, 2);
+  assert.equal(first.threeCrowns, 1);
+  assert.equal(first.closestWins, 1);
+  assert.equal(first.eligibleGames, 3);
+  assert.equal(first.cards.length, 24);
+  assert.equal(first.pairs.length, 84);
+  assert.equal(first.cards.find((row) => row.cards[0].id === 1)?.wins, 0);
+  assert.equal(first.cards.find((row) => row.cards[0].id === 11)?.wins, 1);
+  assert.equal(first.modes[0].scored, 1);
+  assert.equal(first.modes[0].wins, 1);
+});
+
+test("card and pair records group unordered IDs and include draws in their denominator", () => {
+  const win = match("win", 1);
+  const loss = match("loss", 2, 0, 1);
+  const draw = match("draw", 3, 1, 1);
+  draw.participants[0].cards = [...cards]
+    .reverse()
+    .map((card) => ({ ...card, evolution: 1 }));
+  const stats = advancedStats([win, loss, draw], firstTag);
+  assert.equal(stats.cards.length, 8);
+  assert.equal(stats.pairs.length, 28);
+  assert.ok(Math.abs((stats.baseline ?? 0) - 100 / 3) < 1e-10);
+  for (const row of [...stats.cards, ...stats.pairs]) {
+    assert.equal(row.played, 3);
+    assert.deepEqual([row.wins, row.losses, row.draws], [1, 1, 1]);
+    assert.ok(Math.abs(row.winRate - 100 / 3) < 1e-10);
+  }
+});
+
+test("analytics exclude invalid and preset decks but retain scored crowns and all mode counts", () => {
+  const event = match("event", 1, 3, 0, secondTag, "trail");
+  const preset = match("preset", 2);
+  preset.rawMode = "Draft";
+  const invalid = match("invalid", 3);
+  invalid.participants[0].cards = Array(8).fill(cards[0]);
+  const stats = advancedStats([event, preset, invalid], firstTag);
+  assert.equal(stats.eligibleGames, 0);
+  assert.deepEqual(stats.cards, []);
+  assert.deepEqual(stats.pairs, []);
+  assert.equal(stats.baseline, null);
+  assert.equal(stats.crowns, 2);
+  assert.equal(stats.games, 2);
+  assert.equal(
+    stats.modes.reduce((sum, mode) => sum + mode.played, 0),
+    3,
+  );
+  assert.equal(
+    stats.modes.reduce((sum, mode) => sum + mode.scored, 0),
+    2,
+  );
+});
+
+test("a third round after a draw is not counted as a 1-1 decider", () => {
+  const stats = advancedStats(
+    [
+      duel("draw-first", 1, [
+        [1, 1],
+        [1, 0],
+        [1, 0],
+      ]),
+    ],
+    firstTag,
+  );
+  assert.deepEqual(stats.deciders, []);
+  assert.equal(stats.comebacks, 0);
+  assert.equal(stats.games, 3);
+});
+
+test("mode groups preserve different API mode IDs and empty analytics are unavailable", () => {
+  const first = match("mode1", 1);
+  const second = match("mode2", 2);
+  second.modeId = 2;
+  assert.equal(advancedStats([first, second], firstTag).modes.length, 2);
+  const empty = advancedStats([], firstTag);
+  assert.equal(empty.baseline, null);
+  assert.deepEqual(empty.modes, []);
+  assert.equal(empty.crowns, 0);
 });
 
 test("empty datasets use unavailable rates and streaks", () => {

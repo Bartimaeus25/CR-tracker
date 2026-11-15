@@ -58,7 +58,13 @@ export function MatchHistory({
     const view = focal ? perspective(match, focal) : null;
     if (!view || (mode !== "all" && match.mode !== mode)) return [];
     const outcome = view.result ?? "unscored";
-    if (result !== "all" && result !== outcome) return [];
+    if (result === "draw" && outcome !== "draw") return [];
+    if (result === "unscored" && outcome !== "unscored") return [];
+    if (
+      result.startsWith("winner:") &&
+      perspective(match, result.slice(7))?.result !== "win"
+    )
+      return [];
     return [{ match, view, outcome }];
   });
   const perPage = compact ? 5 : 12;
@@ -113,11 +119,13 @@ export function MatchHistory({
                 onChange={(event) => update(setResult, event.target.value)}
               >
                 <option value="all">All results</option>
-                {Object.entries(labels).map(([value, label]) => (
-                  <option value={value} key={value}>
-                    {label}
+                {players.map((value) => (
+                  <option value={`winner:${value.tag}`} key={value.tag}>
+                    {value.name} wins
                   </option>
                 ))}
+                <option value="draw">Draw</option>
+                <option value="unscored">Unscored</option>
               </select>
             </label>
             <label>
@@ -138,7 +146,7 @@ export function MatchHistory({
         </div>
       )}
       <div className="match-table-head" aria-hidden="true">
-        <span>RESULT</span>
+        <span>OUTCOME</span>
         <span>MATCHUP</span>
         <span>CROWNS</span>
         <span>DECK</span>
@@ -155,32 +163,48 @@ export function MatchHistory({
               ? Math.max(...view.opponents.map((value) => value.crowns))
               : null;
             const direct = isDirectMatch(match, players[0].tag, players[1].tag);
+            const winner = match.participants.find(
+              (participant) =>
+                perspective(match, participant.tag)?.result === "win",
+            );
+            const winnerIndex = players.findIndex(
+              (value) => value.tag === winner?.tag,
+            );
             return (
               <Link
                 href={`/matches/${match.id}`}
-                className={`match-row result-${outcome}`}
+                className="match-row"
                 key={match.id}
               >
                 <div className="match-result">
-                  <span className={`result-label ${outcome}`}>
-                    {labels[outcome as keyof typeof labels]}
+                  <span
+                    className={`result-label ${winner ? `winner-badge player-winner-${winnerIndex}` : outcome}`}
+                  >
+                    {winner ? (
+                      <>
+                        <Crown size={11} /> {winner.name}
+                      </>
+                    ) : (
+                      labels[outcome as keyof typeof labels]
+                    )}
                   </span>
-                  {view.player.trophyChange !== null && (
-                    <span
-                      className={
-                        view.player.trophyChange >= 0 ? "win-text" : "loss-text"
-                      }
-                    >
-                      {view.player.trophyChange > 0 ? "+" : ""}
-                      {view.player.trophyChange} trophies
-                    </span>
+                  {winner && (
+                    <small>{match.isDuel ? "Series winner" : "Winner"}</small>
                   )}
                 </div>
                 <div className="matchup-names">
                   <strong>
-                    {view.player.name}
+                    <span
+                      className={`match-player-badge match-player-${players.findIndex((value) => value.tag === view.player.tag)}`}
+                    >
+                      {view.player.name}
+                    </span>
                     <span className="versus-label">vs</span>
-                    <span>{opponent || "Opponent unavailable"}</span>
+                    <span
+                      className={`match-player-badge match-player-${players.findIndex((value) => value.tag === view.opponents[0]?.tag)}`}
+                    >
+                      {opponent || "Opponent unavailable"}
+                    </span>
                   </strong>
                   <span>
                     {direct && <Swords size={11} />}
@@ -245,7 +269,10 @@ export function MatchHistory({
             {selected.length
               ? `${(page - 1) * perPage + 1}–${Math.min(page * perPage, selected.length)} of ${selected.length} matches`
               : "0 matching records"}
-            <small>Results follow the player shown first.</small>
+            <small>
+              Badges name the winner. Crown scores follow the matchup order;
+              duels also show rounds won.
+            </small>
           </span>
           <div>
             <button

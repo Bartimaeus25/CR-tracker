@@ -2827,3 +2827,223 @@ select {
     transition: none !important;
   }
 }
+
+/* Player-specific observations keep the dashboard's blue and gold accents. */
+.analytics-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.analytics-controls .chart-select,
+.card-insights .chart-select {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 11px;
+}
+.analytics-controls select {
+  max-width: min(360px, 80vw);
+}
+.achievement-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+.achievement {
+  padding: 20px;
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  align-content: start;
+}
+.achievement > svg {
+  color: var(--gold);
+}
+.achievement > span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.achievement > strong {
+  grid-column: 1/-1;
+  font-size: 32px;
+  line-height: 1.1;
+}
+.achievement > small {
+  grid-column: 1/-1;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 11px;
+}
+.card-insights,
+.mode-insights {
+  margin-top: 20px;
+  padding: 23px;
+}
+.card-insights .two-column {
+  align-items: start;
+  gap: 24px;
+}
+.insight-records {
+  min-width: 0;
+}
+.insight-records h4 {
+  font-size: 12px;
+  margin: 18px 0 10px;
+  color: var(--muted);
+}
+.insight-record {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #2c3548;
+  padding: 12px 0;
+}
+.insight-art {
+  display: flex;
+  flex-shrink: 0;
+  gap: 3px;
+}
+.insight-art .card-art {
+  width: 35px;
+  height: 44px;
+}
+.insight-art .elixir-pip {
+  display: none;
+}
+.insight-record-name {
+  min-width: 0;
+  flex: 1;
+}
+.insight-record-name strong {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.insight-record small {
+  display: block;
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.insight-rate {
+  text-align: right;
+  max-width: 105px;
+}
+.insight-rate strong {
+  font-size: 14px;
+}
+.mode-table-wrap {
+  overflow: auto;
+}
+.mode-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+.mode-table td,
+.mode-table th {
+  padding: 15px 12px;
+  border-bottom: 1px solid #2c3548;
+}
+.mode-table thead th {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.mode-table tbody th {
+  min-width: 170px;
+  font-weight: 500;
+}
+.mode-table td {
+  white-space: nowrap;
+}
+.mode-table small {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 5px;
+}
+.result-label.winner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.result-label.player-winner-0 {
+  color: #96baff;
+  border-color: #78a6ff55;
+  background: #78a6ff15;
+}
+.result-label.player-winner-1 {
+  color: #edc37c;
+  border-color: #edc37c55;
+  background: #edc37c15;
+}
+.result-label.player-winner--1 {
+  color: #c2c9dd;
+  border-color: #6b78974d;
+}
+.match-result small {
+  color: var(--muted);
+  font-size: 9px;
+}
+@media (min-width: 1100px) {
+  .match-table-head,
+  .match-row {
+    grid-template-columns:
+      120px minmax(160px, 1fr) 75px minmax(110px, 0.8fr)
+      73px 18px;
+  }
+}
+@media (max-width: 760px) {
+  .achievement-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .card-insights .two-column {
+    grid-template-columns: 1fr;
+  }
+  .card-insights .chart-heading {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+}
+@media (max-width: 400px) {
+  .achievement {
+    padding: 14px;
+  }
+  .insight-record {
+    gap: 7px;
+  }
+  .insight-art .card-art {
+    width: 28px;
+    height: 36px;
+  }
+}
+.match-player-badge {
+  border-radius: 4px;
+  padding: 3px 6px;
+  border: 1px solid #60718b46;
+  font-size: 11px;
+}
+.match-player-0 {
+  color: #96baff;
+  background: #78a6ff0d;
+  border-color: #78a6ff33;
+}
+.match-player-1 {
+  color: #edc37c;
+  background: #edc37c0d;
+  border-color: #edc37c33;
+}
+.matchup-names > strong > .match-player-0 {
+  color: #96baff;
+}
+.matchup-names > strong > .match-player-1 {
+  color: #edc37c;
+}

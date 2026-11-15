@@ -88,9 +88,9 @@ export default async function MatchDetailPage({
                         className={`result-label ${view?.result ?? "unscored"}`}
                       >
                         {view?.result === "win"
-                          ? "Victory"
+                          ? "Winner"
                           : view?.result === "loss"
-                            ? "Defeat"
+                            ? "Runner-up"
                             : view?.result === "draw"
                               ? "Draw"
                               : "Unscored"}

@@ -44,7 +44,7 @@ export function PerformanceChart({
           </span>
           <div>
             <h2>Performance over time</h2>
-            <p>Rolling win rate · scored matches</p>
+            <p>Recent form · changes only after a scored match</p>
           </div>
         </div>
         <label className="chart-select">
@@ -97,7 +97,16 @@ export function PerformanceChart({
                   dataKey="time"
                   type="number"
                   domain={["dataMin", "dataMax"]}
-                  tickFormatter={displayTime}
+                  tickFormatter={(value) =>
+                    new Intl.DateTimeFormat("en-GB", {
+                      timeZone: "Europe/Berlin",
+                      day: "2-digit",
+                      month: "short",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      hourCycle: "h23",
+                    }).format(new Date(value))
+                  }
                   tick={{ fill: "#8995aa", fontSize: 10 }}
                   axisLine={false}
                   tickLine={false}
@@ -140,10 +149,10 @@ export function PerformanceChart({
                 <Line
                   dataKey="first"
                   name={players[0]?.name}
-                  type="linear"
+                  type="stepAfter"
                   stroke="#78a6ff"
                   strokeWidth={2.5}
-                  dot={false}
+                  dot={{ r: 2.5, strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                   connectNulls
                   isAnimationActive={false}
@@ -151,10 +160,10 @@ export function PerformanceChart({
                 <Line
                   dataKey="second"
                   name={players[1]?.name}
-                  type="linear"
+                  type="stepAfter"
                   stroke="#edc37c"
                   strokeWidth={2.5}
-                  dot={false}
+                  dot={{ r: 2.5, strokeWidth: 0 }}
                   activeDot={{ r: 4 }}
                   connectNulls
                   isAnimationActive={false}
@@ -163,9 +172,10 @@ export function PerformanceChart({
             </ResponsiveContainer>
           </div>
           <p className="chart-footnote">
-            Each point uses up to {windowSize} preceding scored matches,
-            including the current match. Hover or use arrow keys for sample
-            sizes.
+            Each dot is a completed match (a duel counts as one series). The
+            step holds between matches; it is not a prediction. Win rate uses
+            the latest {windowSize} scored matches, or all available if fewer.
+            Hover or use arrow keys for the date, time and sample size.
           </p>
         </>
       ) : (

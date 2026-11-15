@@ -1,3 +1,4 @@
+import { AdvancedAnalytics } from "@/components/dashboard/advanced-analytics";
 import { DeckAnalytics } from "@/components/dashboard/deck-analytics";
 import { MatchHistory } from "@/components/dashboard/match-history";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
@@ -39,6 +40,11 @@ export default async function Home({
         <RivalryStreaks data={data} />
       </div>
       <Comparison data={data} />
+      <AdvancedAnalytics
+        key={data.scope}
+        matches={data.matches}
+        players={data.players}
+      />
       <section className="panel history-panel">
         <SectionHeading
           title="Recent matches"

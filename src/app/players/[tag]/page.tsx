@@ -1,3 +1,4 @@
+import { AdvancedAnalytics } from "@/components/dashboard/advanced-analytics";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -66,6 +67,12 @@ export default async function PlayerPage({
           index={index}
         />
       </div>
+      <AdvancedAnalytics
+        key={data.scope}
+        matches={data.matches}
+        players={data.players}
+        initialPlayer={player.tag}
+      />
       <section className="panel history-panel">
         <SectionHeading
           title={`${player.name}’s recent matches`}

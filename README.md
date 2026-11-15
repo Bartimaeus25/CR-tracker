@@ -45,6 +45,16 @@ All displayed timestamps use Europe/Berlin, including daylight-saving changes. E
 
 The manual refresh runs through a same-origin Next.js Server Action with fixed server-side player configuration. It reuses the scheduled collector's capture, validation, API retries, and idempotent database import logic. The button is disabled while fetching and displays success, new-match counts, or partial/failure messages. Simultaneous manual requests in the same server process share one in-flight collection. Secrets stay server-side, and partial success refreshes the view with whichever players were saved. The current local dashboard has no sign-in, so visitors who can reach its server can invoke this fixed refresh operation.
 
+## Player insights
+
+Performance over time uses steps and visible completed-match points. The value holds between matches and uses up to the selected number of preceding scored matches, including the current one. Dates and sample sizes are available in the tooltip. Duels count as one series in this chart.
+
+Inside the rivalry is available on the overview, deck analytics, and player pages. Switch player and mode to inspect card and two-card deck associations. Rankings require at least three games/rounds, with selectable thresholds of five, ten, or twenty. Samples below ten are labelled early. Rates include draws and are compared with the same player's eligible-game baseline in percentage points. Levels and evolutions are grouped by card ID. Whole-deck context and opponents affect these observations; they do not establish card strength or pair synergy. Invalid and preset decks are excluded using the same rules as deck analytics.
+
+Crown totals, clean wins, three-crown wins, and one-crown-margin wins count individual games/duel rounds. Comebacks count completed duel series won after losing round one. Decider records require a 1-1 split in the first two rounds. Mode tables retain unscored appearances, while win rates use scored matches/series. The captured remaining tower HP is insufficient to calculate total damage, so no damage metric is inferred.
+
+Match history names the winner with a consistent player color and labels both participants. Result filters name each player explicitly. Duel winners are determined by rounds won, independently of aggregate crown scores.
+
 ## First milestone
 
 Configure the official Supercell API key to allow RoyaleAPI's proxy IP `45.79.218.79`, as documented in the [RoyaleAPI proxy guide](https://docs.royaleapi.com/proxy). Requests use `https://proxy.royaleapi.dev/v1` and a Bearer authorization header.

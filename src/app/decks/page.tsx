@@ -1,3 +1,4 @@
+import { AdvancedAnalytics } from "@/components/dashboard/advanced-analytics";
 import type { Metadata } from "next";
 import { DeckAnalytics } from "@/components/dashboard/deck-analytics";
 import { DataNotes, MatchScope, PageHeading } from "@/components/dashboard/ui";
@@ -35,6 +36,11 @@ export default async function DecksPage({
         matches={data.matches}
         players={data.players}
         initialPlayer={player}
+      />
+      <AdvancedAnalytics
+        key={data.scope}
+        matches={data.matches}
+        players={data.players}
       />
       <DataNotes data={data} />
     </>
