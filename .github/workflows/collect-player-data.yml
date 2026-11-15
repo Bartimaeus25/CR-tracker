@@ -4,6 +4,8 @@ on:
   schedule:
     # Offset from the busy start of each hour. Cron uses UTC.
     - cron: '17 * * * *'
+    # Temporary scheduler diagnostic; removed after verifying automatic execution.
+    - cron: '*/5 * * * *'
   workflow_dispatch:
 
 permissions:
