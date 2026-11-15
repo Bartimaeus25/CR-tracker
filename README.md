@@ -41,7 +41,7 @@ Performance statistics score known standard 1v1 battle types with valid crown to
 
 Deck analytics require eight distinct card IDs. Each duel round contributes its own deck and game result, and the interface labels these counts as games/rounds. Card order and upgrade levels do not split a deck group. Draft, random, mirror, and preset event decks are excluded. Average elixir is unavailable when a card's cost is missing or variable. Deck matchups require at least three recorded games or duel rounds and show sample sizes. Pairings with fewer than ten games are labelled as early samples, with no counter claims.
 
-All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh data** fetches fresh API data for both configured players, saves it to Supabase, and updates the current view. GitHub Actions also collects new API data hourly, and `npm run sync` can collect data locally.
+All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh data** fetches fresh API data for both configured players, saves it to Supabase, and updates the current view. Supabase Cron also collects new API data hourly, and `npm run sync` can collect data locally.
 
 The manual refresh runs through a same-origin Next.js Server Action with fixed server-side player configuration. It reuses the scheduled collector's capture, validation, API retries, and idempotent database import logic. The button is disabled while fetching and displays success, new-match counts, or partial/failure messages. Simultaneous manual requests in the same server process share one in-flight collection. Secrets stay server-side, and partial success refreshes the view with whichever players were saved. The current local dashboard has no sign-in, so visitors who can reach its server can invoke this fixed refresh operation.
 
@@ -101,9 +101,32 @@ All six tables have Row Level Security enabled. Browser roles have no table acce
 
 Collection preserves only what the API currently returns. Battles that disappear from the recent window before a successful collection cannot be recovered through this API. Our API requests have returned up to 30 recent battlelog entries per player. A duel series can contain several games in a single entry. The available history window is controlled by the upstream API.
 
-## Hourly collection with GitHub Actions
+## Hourly collection with Supabase
 
-`.github/workflows/collect-player-data.yml` runs on `main` every hour at minute 17 UTC. The offset avoids the busiest start of the hour. It can also be started from GitHub **Actions → Collect player data → Run workflow**. Collection runs on GitHub even when the local dashboard and development computer are offline.
+Supabase Cron job `collect-rivalry-players-hourly` runs `17 * * * *` (every hour at minute 17 UTC). It uses `pg_net` to call the `collect-player-data` Edge Function, which fetches both profiles, battlelogs, and chest sequences and saves them through the existing atomic import RPC. It runs while the development computer is offline. Normal collection makes six Clash Royale API requests. API retries, schema validation, raw data preservation, battle identity and deduplication are shared with the local/manual collector. Edge imports retry up to three times per player. One player's failure does not prevent collection of the other.
+
+The scheduler uses a dedicated random `COLLECTION_CRON_SECRET`, stored in Supabase Vault and Edge Function secrets. The function verifies it in `x-collection-secret` before doing work; `verify_jwt` is disabled because this is a custom service-to-service credential. Requests cannot specify player tags or API destinations. The privileged database key and Clash Royale key are available only to the Edge Function. `SUPABASE_ACCESS_TOKEN` is used locally for deployment and is never deployed to the function or stored in Vault.
+
+To deploy or update this setup, configure the server values in `.env.local` and add a Supabase account management token as `SUPABASE_ACCESS_TOKEN` (function deployment and secrets write permissions). Then run:
+
+```bash
+npm run db:migrate
+npm run collector:deploy
+npm run collector:activate
+npm run collector:status
+```
+
+`collector:deploy` bundles the shared collector into gitignored `.local/supabase-collector/index.ts`, generates a dedicated job secret if needed, configures Edge secrets, deploys, and verifies both authentication rejection and a real import of both players. Re-run it after changing shared collection code or credentials. `collector:activate` verifies a real import again, upserts the job's Vault values, and registers the hourly job. Applying the SQL migration alone does not activate a job. `collector:verify` tests the deployed function without changing the schedule. No Docker or Supabase CLI is required.
+
+Supabase Dashboard **Cron** shows job dispatch history; **Edge Functions → collect-player-data → Logs** shows collection outcomes. `collector:status` reports the hourly job, recent HTTP status codes, cron dispatch runs, and both player timestamps. A successful cron entry proves the HTTP request was enqueued, not that collection completed: require HTTP 200 and advancing player timestamps. HTTP responses in `net._http_response` expire under the `pg_net` retention setting (normally six hours); private dispatch IDs remain in `tracker_private.collection_dispatches`. Missing older HTTP responses do not establish a failure. No alert service is configured.
+
+The automatic path was verified with a temporary one-minute Supabase Cron job on 15 November 2026 at 10:46 UTC / 11:46 Berlin: dispatch succeeded, the Edge response was HTTP 200, and both player collection timestamps advanced by 10:46:06 UTC. That temporary job was removed; only the hourly job remains. GitHub's schedule was then removed.
+
+An hourly interval still depends on the upstream battlelog window and successful execution. Project availability, plan limits and Edge Function runtime limits apply. The Edge path retries imports in memory and does not keep the local CLI's disk outbox; after a terminal failure, use the manual refresh or retry before the upstream window moves on. Reload an open dashboard to see scheduled data, or use **Refresh data** for an immediate collection. See [Supabase scheduling](https://supabase.com/docs/guides/functions/schedule-functions).
+
+## GitHub Actions manual backup
+
+`.github/workflows/collect-player-data.yml` has only `workflow_dispatch`. Start it from GitHub **Actions → Collect player data → Run workflow**. The GitHub scheduler investigation is retained in [docs/scheduler-investigation.md](docs/scheduler-investigation.md) as historical context.
 
 The workflow uses Node.js 22, `npm ci`, and the existing `npm run sync` command. It reads the three repository secrets `CLASH_ROYALE_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. Set `SUPABASE_URL` to the base project URL. Database migrations are managed separately with `DATABASE_URL` locally.
 
@@ -111,7 +134,7 @@ Normal collection makes six Clash Royale API requests per run, covering profiles
 
 After a failed run, remaining JSON captures are uploaded as `pending-player-data-<run-id>-<attempt>` artifacts and retained for thirty days. To recover them, download the artifact from that workflow run, extract its JSON files into the local gitignored `.local/pending` directory, and run `npm run sync`. Successful imports remove their pending files. Artifacts are recovery copies and are not restored automatically into later runners. They contain game data and are available to people with the repository's artifact access.
 
-An hourly schedule is a practical collection interval, but complete history depends on fewer than a full battlelog window of new entries occurring between successful runs. GitHub schedules can be delayed or dropped during high load. Scheduled workflows run from the default branch. For public repositories, GitHub automatically disables schedules after sixty days without repository activity. Check and re-enable the workflow under Actions if that happens. See [GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Check the workflow's conclusion and logs when investigating gaps. Reload the page to see scheduled collection results, or use **Refresh data** for an immediate API collection.
+Check the workflow's conclusion and logs when investigating manual backup failures. The GitHub workflow does not schedule any automatic collection.
 
 ## File structure
 

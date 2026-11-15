@@ -1,9 +1,7 @@
 name: Collect player data
 
 on:
-  schedule:
-    # Offset from the busy start of each hour. Cron uses UTC.
-    - cron: '17 * * * *'
+  # Manual backup. Hourly collection is scheduled by Supabase Cron.
   workflow_dispatch:
 
 permissions:

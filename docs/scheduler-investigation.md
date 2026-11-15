@@ -1,5 +1,7 @@
 # Scheduled collection investigation
 
+Superseded: automatic collection moved to Supabase Cron later on 15 November 2026. A real scheduled Supabase invocation succeeded at 10:46 UTC. GitHub Actions now remains a manual backup only; the observations below document its earlier scheduler investigation.
+
 Checked on 15 November 2026, through 10:37 UTC (11:37 Europe/Berlin).
 
 ## Confirmed observations
