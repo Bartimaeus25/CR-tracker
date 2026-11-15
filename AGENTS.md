@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Repository workflow
 
-Work directly on `main` for this private project. Commit completed logical changes regularly with clear commit messages.
+Work directly on `main`. Commit completed logical changes regularly with clear commit messages.

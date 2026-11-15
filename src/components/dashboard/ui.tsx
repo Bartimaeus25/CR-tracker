@@ -697,7 +697,7 @@ export function DataNotes({ data }: { data: DashboardData }) {
           The API supplies a recent battle window. Earlier matches are available
           only if they were captured. Profile trophies and observed trophy
           history are separate from match trophy changes. Refresh view reloads
-          stored data. Collection currently runs manually.
+          stored data. Collection is scheduled hourly through GitHub Actions.
         </p>
       </div>
     </details>

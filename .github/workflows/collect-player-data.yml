@@ -1,0 +1,73 @@
+name: Collect player data
+
+on:
+  schedule:
+    # Offset from the busy start of each hour. Cron uses UTC.
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: player-data-collection
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect both players
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Fetch and store player data
+        shell: bash
+        env:
+          CLASH_ROYALE_API_KEY: ${{ secrets.CLASH_ROYALE_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          for variable in CLASH_ROYALE_API_KEY SUPABASE_URL SUPABASE_SECRET_KEY; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::Missing repository secret: ${variable}"
+              exit 1
+            fi
+          done
+
+          for attempt in 1 2 3; do
+            if npm run sync; then
+              exit 0
+            fi
+
+            if [[ "${attempt}" -lt 3 ]]; then
+              echo "Collection attempt ${attempt} failed. Retrying in 20 seconds."
+              sleep 20
+            fi
+          done
+
+          echo "::error::Collection failed after three attempts."
+          exit 1
+
+      - name: Preserve unimported captures
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: pending-player-data-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .local/pending/*.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 30

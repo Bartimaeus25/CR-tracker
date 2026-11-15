@@ -41,7 +41,7 @@ Performance statistics score known standard 1v1 battle types with valid crown to
 
 Deck analytics require eight distinct card IDs. Each duel round contributes its own deck and game result, and the interface labels these counts as games/rounds. Card order and upgrade levels do not split a deck group. Draft, random, mirror, and preset event decks are excluded. Average elixir is unavailable when a card's cost is missing or variable. Deck matchups require at least three recorded games or duel rounds and show sample sizes. Pairings with fewer than ten games are labelled as early samples, with no counter claims.
 
-All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh view** fetches the latest stored database state. Use `npm run sync` separately to collect new API data.
+All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh view** fetches the latest stored database state. GitHub Actions collects new API data hourly, and `npm run sync` can also collect data locally.
 
 ## First milestone
 
@@ -87,7 +87,19 @@ Shared battles get the same identifier regardless of which player observed them 
 
 All six tables have Row Level Security enabled. Browser roles have no table access or permission to execute the ingestion function. The ingestion function uses the caller's permissions and is granted to `service_role`. Keep `SUPABASE_SECRET_KEY` server-side, as it has privileged database access.
 
-Collection preserves only what the API currently returns. Battles that disappear from the recent window before a collection cannot be recovered through this API. Run `npm run sync` regularly while playing to build history.
+Collection preserves only what the API currently returns. Battles that disappear from the recent window before a successful collection cannot be recovered through this API. Our API requests have returned up to 30 recent battlelog entries per player. A duel series can contain several games in a single entry. The available history window is controlled by the upstream API.
+
+## Hourly collection with GitHub Actions
+
+`.github/workflows/collect-player-data.yml` runs on `main` every hour at minute 17 UTC. The offset avoids the busiest start of the hour. It can also be started from GitHub **Actions → Collect player data → Run workflow**. Collection runs on GitHub even when the local dashboard and development computer are offline.
+
+The workflow uses Node.js 22, `npm ci`, and the existing `npm run sync` command. It reads the three repository secrets `CLASH_ROYALE_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. Set `SUPABASE_URL` to the base project URL. Database migrations are managed separately with `DATABASE_URL` locally.
+
+Normal collection makes six Clash Royale API requests per run, covering profiles, battlelogs, and upcoming chests for both players. Supabase imports remain idempotent. The workflow serializes collection jobs and retries a failed collection up to three times, with twenty seconds between attempts, in addition to the API client's bounded request retries.
+
+After a failed run, remaining JSON captures are uploaded as `pending-player-data-<run-id>-<attempt>` artifacts and retained for thirty days. To recover them, download the artifact from that workflow run, extract its JSON files into the local gitignored `.local/pending` directory, and run `npm run sync`. Successful imports remove their pending files. Artifacts are recovery copies and are not restored automatically into later runners. They contain game data and are available to people with the repository's artifact access.
+
+An hourly schedule is a practical collection interval, but complete history depends on fewer than a full battlelog window of new entries occurring between successful runs. GitHub schedules can be delayed or dropped during high load. Scheduled workflows run from the default branch. See [GitHub's schedule documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule). Check the workflow's conclusion and logs when investigating gaps. Reload the dashboard with **Refresh view** after collection to see new stored data.
 
 ## File structure
 
@@ -127,4 +139,4 @@ The lockfile pins installed dependencies. Use `npm ci` for reproducible installs
 
 ## Later milestones
 
-GitHub Actions scheduling and Vercel hosting follow later. Scheduled collection can use the existing API and Supabase repository secrets. Database credentials are needed only when applying migrations. The dashboard currently runs locally and has no sign-in. Its routes expose curated game statistics to visitors who can reach the server.
+Vercel hosting follows later. Database credentials are needed only when applying migrations. The dashboard currently runs locally and has no sign-in. Its routes expose curated game statistics to visitors who can reach the server.
