@@ -309,23 +309,35 @@ export function RivalryHighlights({
               (a, b) =>
                 b.wins / b.scored - a.wins / a.scored || b.scored - a.scored,
             )[0];
+          const favorite = [...stats.cards].sort(
+            (a, b) => b.played - a.played || a.key.localeCompare(b.key),
+          )[0];
+          const featured = streak ?? favorite;
           const recent = playerStats(matches, player.tag);
           return [
             {
-              title: "A card on a run",
+              title: streak ? "Card streak" : "Most-played card",
               value: streak
                 ? `${streak.currentUnbeaten} unbeaten`
-                : "A run is building",
+                : favorite
+                  ? `${favorite.usageRate.toFixed(1)}% usage`
+                  : "No card records",
               detail: streak
-                ? `${streak.cards[0].name} · ${streak.currentWins} consecutive wins at the end of this run. Counts recorded scored appearances, including draws.`
-                : "Three successive scored appearances without a loss will unlock a card story.",
+                ? streak.currentWins === streak.currentUnbeaten
+                  ? `Won the last ${streak.currentUnbeaten} recorded appearances with this card. Counts scored games and duel rounds.`
+                  : `No losses in the last ${streak.currentUnbeaten} recorded appearances, including draws. Counts scored games and duel rounds.`
+                : favorite
+                  ? `Used in ${favorite.played} of ${stats.eligibleGames} eligible games/rounds: ${favorite.wins} wins, ${favorite.losses} losses and ${favorite.draws} draws.${favorite.played < 10 ? " Early sample." : ""}`
+                  : "No valid eight-card decks are recorded for this player in the selected mode.",
               icon: Flame,
+              card: featured?.cards[0],
             },
             {
               title: "Bounce-back factor",
               value: `${facts.bouncebacks} responses`,
               detail: `Wins immediately after a recorded match/series loss. ${facts.sweeps} two-round duel sweeps; ${facts.firstRoundConversions}/${facts.firstRoundWins} series won after taking round one.`,
               icon: Sparkles,
+              card: undefined,
             },
             {
               title: mode
@@ -338,8 +350,9 @@ export function RivalryHighlights({
                 ? `${mode.wins} wins in ${mode.scored} scored matches/series. Minimum three; ties possible${mode.scored < 10 ? "; early sample" : ""}.`
                 : "Longest winning streak in the selected view. Draws and unscored matches break the streak.",
               icon: Crown,
+              card: undefined,
             },
-          ].map(({ title, value, detail, icon: Icon }) => (
+          ].map(({ title, value, detail, card, icon: Icon }) => (
             <article
               className={`panel story-card accent-${index}`}
               key={`${player.tag}-${title}`}
@@ -348,7 +361,13 @@ export function RivalryHighlights({
               <small>{player.name}</small>
               <Icon size={18} />
               <h3>{title}</h3>
-              <strong>{value}</strong>
+              <div className="story-value">
+                {card && <CardArtwork card={card} />}
+                <div>
+                  {card && <span className="story-card-name">{card.name}</span>}
+                  <strong>{value}</strong>
+                </div>
+              </div>
               <p>{detail}</p>
             </article>
           ));
