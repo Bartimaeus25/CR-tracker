@@ -143,6 +143,8 @@ The private ping URL is saved locally and deployed as `HEALTHCHECKS_PING_URL`; t
 
 The `--no-collection-test` deployment flag deliberately avoids invoking the collector or changing its schedule. `alerts:arm` sends one setup-only heartbeat for a new check, starting its initial two-hour timer without fetching any game data. After that, scheduled successful collections renew it. Re-running `arm` does not reset an already initialized check. No collection, deliberate outage or test email is triggered by `alerts:setup` or `alerts:status`. Email delivery and the full two-hour outage path must be verified separately; configuration alone does not prove inbox delivery.
 
+Activated on 15 November 2026 using the verified account's email integration. The natural hourly run at 11:17 UTC / 12:17 Berlin returned HTTP 200, updated both players by 11:17:07 UTC, and renewed the external heartbeat at 11:17:08 UTC. No manual collection or schedule change was used for that verification. The monitor reports a one-hour period plus one-hour grace and an assigned email channel. No deliberate failure or test email was sent, so inbox delivery remains unverified.
+
 ## GitHub Actions manual backup
 
 `.github/workflows/collect-player-data.yml` has only `workflow_dispatch`. Start it from GitHub **Actions → Collect player data → Run workflow**. The GitHub scheduler investigation is retained in [docs/scheduler-investigation.md](docs/scheduler-investigation.md) as historical context.
