@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Activity, TrendingUp } from "lucide-react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
   Line,
   LineChart,
@@ -11,30 +13,28 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { displayDate, displayRate, displayTime } from "@/lib/dashboard/format";
-import { rollingWinRates } from "@/lib/dashboard/stats";
+import { displayDate } from "@/lib/dashboard/format";
+import { periodStats, type Period } from "@/lib/dashboard/trends";
 import type { Match, Player, TrophyObservation } from "@/lib/dashboard/types";
 import { EmptyState } from "./ui";
 
 export function PerformanceChart({
   matches,
   players,
+  variant = "rivalry",
 }: {
   matches: Match[];
   players: Player[];
+  variant?: "rivalry" | "overall";
 }) {
-  const [windowSize, setWindowSize] = useState(10);
-  const points = rollingWinRates(
+  const [period, setPeriod] = useState<Period>("daily");
+  const direct = variant === "rivalry";
+  const points = periodStats(
     matches,
     players.map((player) => player.tag),
-    windowSize,
+    period,
+    direct,
   );
-  const lastFirst = [...points]
-    .reverse()
-    .find((point) => point.first !== undefined);
-  const lastSecond = [...points]
-    .reverse()
-    .find((point) => point.second !== undefined);
   return (
     <section className="panel performance-panel">
       <div className="chart-heading">
@@ -44,146 +44,169 @@ export function PerformanceChart({
           </span>
           <div>
             <h2>Performance over time</h2>
-            <p>Recent form · changes only after a scored match</p>
+            <p>
+              {direct
+                ? "Head-to-head outcomes"
+                : "Results against all opponents"}{" "}
+              grouped by period
+            </p>
           </div>
         </div>
         <label className="chart-select">
-          <span className="sr-only">Rolling win rate window</span>
+          <span className="sr-only">Performance grouping</span>
           <select
-            value={windowSize}
-            onChange={(event) => setWindowSize(Number(event.target.value))}
+            value={period}
+            onChange={(event) => setPeriod(event.target.value as Period)}
           >
-            {[5, 10, 20].map((value) => (
-              <option key={value} value={value}>
-                Last {value} battles
-              </option>
-            ))}
+            {(["daily", "weekly", "monthly", "yearly"] as const).map(
+              (value) => (
+                <option value={value} key={value}>
+                  {value[0].toUpperCase() + value.slice(1)}
+                </option>
+              ),
+            )}
           </select>
         </label>
       </div>
-      {points.length > 1 ? (
-        <>
-          <div className="chart-legend">
-            {players.map((player, index) => (
-              <div key={player.tag}>
-                <span className={`player-dot player-color-${index}`} />
-                <span>{player.name}</span>
-                <strong>
-                  {displayRate(
-                    (index === 0 ? lastFirst?.first : lastSecond?.second) ??
-                      null,
-                  )}
-                </strong>
-              </div>
-            ))}
+      <div className="chart-legend">
+        {players.map((player, index) => (
+          <div key={player.tag}>
+            <span className={`player-dot player-color-${index}`} />
+            <span>
+              {player.name}
+              {direct ? " wins" : ""}
+            </span>
           </div>
-          <div
-            className="chart-container"
-            role="group"
-            aria-label={`Rolling win rate for ${players.map((player) => player.name).join(" and ")}, using up to ${windowSize} scored matches per point.`}
-          >
-            <ResponsiveContainer width="100%" height={220} minWidth={0}>
-              <LineChart
-                data={points}
-                margin={{ top: 10, right: 12, left: -22, bottom: 0 }}
-                accessibilityLayer
-              >
-                <CartesianGrid
-                  stroke="#283145"
-                  strokeDasharray="3 5"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="time"
-                  type="number"
-                  domain={["dataMin", "dataMax"]}
-                  tickFormatter={(value) =>
-                    new Intl.DateTimeFormat("en-GB", {
-                      timeZone: "Europe/Berlin",
-                      day: "2-digit",
-                      month: "short",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                      hourCycle: "h23",
-                    }).format(new Date(value))
-                  }
-                  tick={{ fill: "#8995aa", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                  minTickGap={45}
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  ticks={[0, 25, 50, 75, 100]}
-                  tickFormatter={(value) => `${value}%`}
-                  tick={{ fill: "#8995aa", fontSize: 10 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  content={({ active, payload, label }) =>
-                    active && payload?.length ? (
-                      <div className="chart-tooltip">
-                        <strong>{displayDate(Number(label), true)}</strong>
-                        {payload.map((item) => {
-                          const point = points.find(
-                            (value) => value.time === Number(label),
-                          );
-                          const sample =
-                            item.dataKey === "first"
-                              ? point?.firstSample
-                              : point?.secondSample;
-                          return (
-                            <span key={String(item.dataKey)}>
-                              <i style={{ background: item.color }} />
-                              {item.name}
-                              <b>{Number(item.value).toFixed(1)}%</b>
-                              <small>n={sample}</small>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    ) : null
-                  }
-                />
-                <Line
-                  dataKey="first"
-                  name={players[0]?.name}
-                  type="stepAfter"
-                  stroke="#78a6ff"
-                  strokeWidth={2.5}
-                  dot={{ r: 2.5, strokeWidth: 0 }}
-                  activeDot={{ r: 4 }}
-                  connectNulls
+        ))}
+        <div>
+          <span className="player-dot" style={{ background: "#8792a7" }} />
+          Draws
+        </div>
+        {!direct && (
+          <div>
+            <span className="player-dot" style={{ background: "#de8c99" }} />
+            Losses
+          </div>
+        )}
+      </div>
+      {points.length ? (
+        <div
+          className="chart-container"
+          role="group"
+          aria-label={`${period} stacked match results`}
+        >
+          <ResponsiveContainer width="100%" height={250} minWidth={0}>
+            <BarChart
+              data={points}
+              margin={{ top: 10, right: 12, left: -20, bottom: 5 }}
+              accessibilityLayer
+            >
+              <CartesianGrid
+                stroke="#283145"
+                strokeDasharray="3 5"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: "#8995aa", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                minTickGap={28}
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: "#8995aa", fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <Tooltip
+                cursor={{ fill: "#ffffff06" }}
+                content={({ active, payload, label }) =>
+                  active && payload?.length ? (
+                    <div className="chart-tooltip">
+                      <strong>{label}</strong>
+                      {payload.map((item) => (
+                        <span key={String(item.dataKey)}>
+                          <i style={{ background: item.color }} />
+                          {item.name}
+                          <b>{String(item.value)}</b>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null
+                }
+              />
+              <Bar
+                dataKey="firstWin"
+                name={`${players[0]?.name} wins`}
+                stackId="first"
+                fill="#78a6ff"
+                maxBarSize={55}
+                isAnimationActive={false}
+              />
+              {!direct && (
+                <Bar
+                  dataKey="firstLoss"
+                  name={`${players[0]?.name} losses`}
+                  stackId="first"
+                  fill="#de8c99"
+                  maxBarSize={55}
                   isAnimationActive={false}
                 />
-                <Line
-                  dataKey="second"
-                  name={players[1]?.name}
-                  type="stepAfter"
-                  stroke="#edc37c"
-                  strokeWidth={2.5}
-                  dot={{ r: 2.5, strokeWidth: 0 }}
-                  activeDot={{ r: 4 }}
-                  connectNulls
+              )}
+              <Bar
+                dataKey="firstDraw"
+                name={direct ? "Draws" : `${players[0]?.name} draws`}
+                stackId="first"
+                fill="#8792a7"
+                maxBarSize={55}
+                isAnimationActive={false}
+              />
+              <Bar
+                dataKey="secondWin"
+                name={`${players[1]?.name} wins`}
+                stackId={direct ? "first" : "second"}
+                fill="#edc37c"
+                maxBarSize={55}
+                isAnimationActive={false}
+              />
+              {!direct && (
+                <Bar
+                  dataKey="secondLoss"
+                  name={`${players[1]?.name} losses`}
+                  stackId="second"
+                  fill="#de8c99"
+                  maxBarSize={55}
                   isAnimationActive={false}
                 />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-          <p className="chart-footnote">
-            Each dot is a completed match (a duel counts as one series). The
-            step holds between matches; it is not a prediction. Win rate uses
-            the latest {windowSize} scored matches, or all available if fewer.
-            Hover or use arrow keys for the date, time and sample size.
-          </p>
-        </>
+              )}
+              {!direct && (
+                <Bar
+                  dataKey="secondDraw"
+                  name={`${players[1]?.name} draws`}
+                  stackId="second"
+                  fill="#8792a7"
+                  maxBarSize={55}
+                  isAnimationActive={false}
+                />
+              )}
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       ) : (
         <EmptyState
-          title="Performance history is building"
-          description="At least two scored match times are needed to draw a trend."
+          title="No scored matches in this view"
+          description="Change the mode filter or wait for more recorded matches."
         />
       )}
+      <p className="chart-footnote">
+        {direct
+          ? "One stack per period: wins for each player plus draws."
+          : `Two stacks per period: ${players[0]?.name} on the left, ${players[1]?.name} on the right. Player colors show wins; red shows losses.`}{" "}
+        Counts use matches or duel series, not individual rounds. Berlin
+        calendar periods; weeks start Monday. Only periods with scored matches
+        are shown.
+      </p>
     </section>
   );
 }
@@ -192,16 +215,23 @@ export function TrophyChart({
   observations,
   player,
   index,
+  metric = "trophies",
 }: {
   observations: TrophyObservation[];
   player: Player;
   index: number;
+  metric?: "trophies" | "rankedRating";
 }) {
   const points = observations
     .filter((point) => point.tag === player.tag)
+    .filter(
+      (point) =>
+        metric === "trophies" ||
+        (point.rankedRating != null && point.rankedRating > 0),
+    )
     .map((point) => ({
       time: Date.parse(point.time),
-      trophies: point.trophies,
+      trophies: point[metric],
     }));
   const changed = new Set(points.map((point) => point.trophies)).size > 1;
   return (
@@ -211,7 +241,10 @@ export function TrophyChart({
           <TrendingUp size={18} />
         </span>
         <div>
-          <h2>Trophy observations</h2>
+          <h2>
+            {player.name} ·{" "}
+            {metric === "trophies" ? "trophies" : "ranked rating"}
+          </h2>
           <p>{points.length} stored profile observations</p>
         </div>
       </div>
@@ -219,7 +252,7 @@ export function TrophyChart({
         <div
           className="chart-container"
           role="group"
-          aria-label={`Observed trophy totals for ${player.name}`}
+          aria-label={`Observed ${metric === "trophies" ? "trophy totals" : "ranked ratings"} for ${player.name}`}
         >
           <ResponsiveContainer width="100%" height={200} minWidth={0}>
             <LineChart
@@ -236,7 +269,16 @@ export function TrophyChart({
                 dataKey="time"
                 type="number"
                 domain={["dataMin", "dataMax"]}
-                tickFormatter={displayTime}
+                tickFormatter={(value) =>
+                  new Intl.DateTimeFormat("en-GB", {
+                    timeZone: "Europe/Berlin",
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    hourCycle: "h23",
+                  }).format(new Date(value))
+                }
                 tick={{ fill: "#8995aa", fontSize: 10 }}
                 axisLine={false}
                 tickLine={false}
@@ -259,7 +301,7 @@ export function TrophyChart({
               />
               <Line
                 dataKey="trophies"
-                name="Trophies"
+                name={metric === "trophies" ? "Trophies" : "Season rating"}
                 type="stepAfter"
                 stroke={index === 0 ? "#78a6ff" : "#edc37c"}
                 strokeWidth={2}
@@ -272,8 +314,16 @@ export function TrophyChart({
       ) : (
         <EmptyState
           icon="shield"
-          title="Waiting for a trophy change"
-          description="No trophy change has been observed yet. A trend will appear when a future profile records a different total."
+          title={
+            metric === "trophies"
+              ? "Waiting for a trophy change"
+              : "Waiting for ranked rating history"
+          }
+          description={
+            metric === "trophies"
+              ? "No trophy change has been observed yet. A trend will appear when a future profile records a different total."
+              : "At least two different positive season ratings are needed. Zero or missing ratings are excluded."
+          }
         />
       )}
     </section>

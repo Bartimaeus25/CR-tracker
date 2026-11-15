@@ -15,6 +15,11 @@ import {
 } from "../src/lib/dashboard/stats";
 import { readSupabaseRows } from "../src/lib/supabase";
 import type { Card, Match, Participant } from "../src/lib/dashboard/types";
+import {
+  periodKey,
+  periodStats,
+  rivalryFacts,
+} from "../src/lib/dashboard/trends";
 
 const firstTag = "#2CVGR2R8R";
 const secondTag = "#9Q2PQLG0L";
@@ -422,6 +427,96 @@ test("empty datasets use unavailable rates and streaks", () => {
   assert.equal(stats.streak, null);
   assert.deepEqual(deckStats([], firstTag), []);
   assert.equal(headToHead([], firstTag, secondTag).matches.length, 0);
+});
+
+test("calendar grouping uses Berlin dates, Monday weeks and year boundaries", () => {
+  assert.equal(periodKey("2026-11-15T23:30:00Z", "daily"), "2026-11-16");
+  assert.equal(periodKey("2026-06-14T22:30:00Z", "daily"), "2026-06-15");
+  assert.equal(periodKey("2026-01-01T12:00:00Z", "weekly"), "2025-12-29");
+  assert.equal(periodKey("2026-11-15T12:00:00Z", "weekly"), "2026-11-09");
+  assert.equal(periodKey("2026-12-31T23:30:00Z", "monthly"), "2027-01");
+  assert.equal(periodKey("2026-12-31T23:30:00Z", "yearly"), "2027");
+});
+
+test("rivalry bars count unique series and draws once, excluding random and unscored games", () => {
+  const win = match("win", 1);
+  const drawn = match("draw", 1, 1, 1);
+  const lost = duel("duel", 1, [
+    [1, 0],
+    [0, 1],
+    [0, 1],
+  ]);
+  const random = match("random", 1, 1, 0, otherTag);
+  const event = match("event", 1, 3, 0, secondTag, "trail");
+  const rows = periodStats(
+    [win, win, drawn, lost, random, event],
+    [firstTag, secondTag],
+    "daily",
+  );
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].firstWin, 1);
+  assert.equal(rows[0].secondWin, 1);
+  assert.equal(rows[0].firstDraw, 1);
+  assert.equal(rows[0].firstWin + rows[0].secondWin + rows[0].firstDraw, 3);
+  const overall = periodStats(
+    [win, drawn, lost, random, event],
+    [firstTag, secondTag],
+    "daily",
+    false,
+  )[0];
+  assert.equal(overall.firstWin, 2);
+  assert.equal(overall.firstLoss, 1);
+  assert.equal(overall.firstDraw, 1);
+  assert.equal(overall.secondWin, 1);
+  assert.equal(overall.secondLoss, 1);
+  assert.equal(overall.secondDraw, 1);
+});
+
+test("card usage, crown output and unbeaten runs use scored appearances in chronology", () => {
+  const games = [
+    match("a", 1, 3, 0),
+    match("b", 2, 0, 1),
+    match("c", 3, 1, 1),
+    match("d", 4, 2, 0),
+  ];
+  games[3].participants[0].cards = cards.map((card) =>
+    card.id === 2 ? { ...card, id: 9 } : card,
+  );
+  const stats = advancedStats([...games].reverse(), firstTag);
+  const first = stats.cards.find((card) => card.key === "1")!;
+  const second = stats.cards.find((card) => card.key === "2")!;
+  assert.equal(first.usageRate, 100);
+  assert.equal(first.averageCrowns, 1.5);
+  assert.equal(first.crowns, 6);
+  assert.equal(first.conceded, 2);
+  assert.equal(first.currentUnbeaten, 2);
+  assert.equal(first.currentWins, 1);
+  assert.equal(first.longestUnbeaten, 2);
+  assert.equal(second.usageRate, 75);
+  assert.equal(second.currentUnbeaten, 1);
+  assert.equal(second.currentWins, 0);
+  assert.equal(stats.pairs.find((pair) => pair.key === "1-2")?.played, 3);
+});
+
+test("bouncebacks break on unscored matches and duel conversion uses series winners", () => {
+  const loss = match("loss", 1, 0, 1),
+    event = match("event", 2, 1, 0, secondTag, "trail"),
+    win = match("win", 3);
+  assert.equal(rivalryFacts([loss, event, win], firstTag).bouncebacks, 0);
+  assert.equal(rivalryFacts([loss, win], firstTag).bouncebacks, 1);
+  const complete = duel("sweep", 4, [
+    [1, 0],
+    [2, 0],
+  ]);
+  const overturned = duel("overturned", 5, [
+    [1, 0],
+    [0, 1],
+    [0, 1],
+  ]);
+  const facts = rivalryFacts([complete, overturned], firstTag);
+  assert.equal(facts.sweeps, 1);
+  assert.equal(facts.firstRoundWins, 2);
+  assert.equal(facts.firstRoundConversions, 1);
 });
 
 test("read-only queries paginate when the server page limit is smaller than requested", async () => {

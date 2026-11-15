@@ -697,11 +697,16 @@ export function DataNotes({ data }: { data: DashboardData }) {
           preset event decks are excluded from deck analytics. Matchup samples
           need at least three scored matches and describe observations only.
           Card and pair records use individual games and duel rounds, with a
-          selectable minimum of three or more appearances. Samples below ten are
-          early observations; a pair’s win rate describes its whole deck and
-          does not prove synergy. Mode win rates use matches or duel series.
-          Crown totals use individual games and rounds. Damage cannot be
-          calculated from remaining tower HP alone.
+          selectable sample threshold, defaulting to three appearances. Samples
+          below ten are early observations; a pair’s win rate describes its
+          whole deck and does not prove synergy. Mode win rates use matches or
+          duel series. Crown totals use individual games and rounds. Damage
+          cannot be calculated from remaining tower HP alone. Card/pair usage
+          divides appearances by eligible games/rounds. Card unbeaten runs
+          include draws and count only scored appearances of that card, while
+          ordinary winning streaks break on draws. Performance bars use Berlin
+          calendar periods; weeks start Monday. The overview is always head to
+          head; Stats includes every opponent.
         </p>
         <p>
           The API supplies a recent battle window. Earlier matches are available
