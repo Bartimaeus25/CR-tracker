@@ -10,4 +10,4 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## Repository workflow
 
-Work directly on `main`. Commit completed logical changes regularly with clear commit messages.
+Work on feature branches. Keep `main` as the deployment branch and merge completed, verified work into `main` when it is ready to deploy. Commit completed logical changes regularly with clear commit messages.
