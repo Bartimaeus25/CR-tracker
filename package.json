@@ -19,7 +19,10 @@
     "collector:deploy": "tsx scripts/supabase-collector.ts deploy",
     "collector:activate": "tsx scripts/supabase-collector.ts activate",
     "collector:verify": "tsx scripts/supabase-collector.ts verify",
-    "collector:status": "tsx scripts/supabase-collector.ts status"
+    "collector:status": "tsx scripts/supabase-collector.ts status",
+    "alerts:setup": "tsx --conditions=react-server scripts/collection-alerts.ts setup",
+    "alerts:arm": "tsx --conditions=react-server scripts/collection-alerts.ts arm",
+    "alerts:status": "tsx --conditions=react-server scripts/collection-alerts.ts status"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",

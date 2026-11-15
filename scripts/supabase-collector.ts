@@ -65,9 +65,10 @@ async function bundle() {
       "process.env.CLASH_ROYALE_API_KEY": "__collectorEnv.apiKey",
       "process.env.SUPABASE_URL": "__collectorEnv.url",
       "process.env.SUPABASE_SECRET_KEY": "__collectorEnv.databaseKey",
+      "process.env.HEALTHCHECKS_PING_URL": "__collectorEnv.heartbeatUrl",
     },
     banner: {
-      js: 'const __collectorEnv = { apiKey: Deno.env.get("CLASH_ROYALE_API_KEY"), url: Deno.env.get("SUPABASE_URL"), databaseKey: Deno.env.get("RIVALRY_SUPABASE_SECRET_KEY") };',
+      js: 'const __collectorEnv = { apiKey: Deno.env.get("CLASH_ROYALE_API_KEY"), url: Deno.env.get("SUPABASE_URL"), databaseKey: Deno.env.get("RIVALRY_SUPABASE_SECRET_KEY"), heartbeatUrl: Deno.env.get("HEALTHCHECKS_PING_URL") };',
     },
     // The app's server-only marker is retained everywhere else; the Edge artifact is server code.
     plugins: [
@@ -95,6 +96,8 @@ async function bundle() {
     "SUPABASE_ACCESS_TOKEN",
     "COLLECTION_CRON_SECRET",
     "DATABASE_URL",
+    "HEALTHCHECKS_API_KEY",
+    "HEALTHCHECKS_PING_URL",
   ]) {
     if (process.env[name] && source.includes(process.env[name]!))
       throw new Error("Secret found in generated bundle.");
@@ -191,6 +194,14 @@ async function deploy() {
         name: "COLLECTION_CRON_SECRET",
         value: required("COLLECTION_CRON_SECRET"),
       },
+      ...(process.env.HEALTHCHECKS_PING_URL
+        ? [
+            {
+              name: "HEALTHCHECKS_PING_URL",
+              value: process.env.HEALTHCHECKS_PING_URL.trim(),
+            },
+          ]
+        : []),
     ]),
   });
   await secretsResponse.body?.cancel();
@@ -218,7 +229,11 @@ async function deploy() {
       "Function deployment did not confirm the expected active configuration.",
     );
   console.log(`Deployed ${slug}, version ${result.version}.`);
-  await verify();
+  if (process.argv.includes("--no-collection-test")) {
+    console.log(
+      "Collection verification intentionally skipped; no collector invocation or schedule change was made.",
+    );
+  } else await verify();
 }
 
 async function activate() {

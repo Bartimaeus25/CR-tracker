@@ -2,6 +2,11 @@ import "server-only";
 import { timingSafeEqual } from "node:crypto";
 import { refreshTrackedPlayers, type RefreshResult } from "./manual-refresh";
 import { CollectionStorageError, saveCollection } from "./supabase";
+import {
+  sendCollectionHeartbeat,
+  type HeartbeatStatus,
+} from "./collection-heartbeat";
+import { trackedPlayers } from "@/config/players";
 
 async function saveWithRetries(input: unknown) {
   for (let attempt = 0; ; attempt++) {
@@ -20,6 +25,8 @@ export function createCollectionHandler(
   secret: string | undefined,
   collect: () => Promise<RefreshResult> = () =>
     refreshTrackedPlayers({ save: saveWithRetries }),
+  heartbeat: () => Promise<HeartbeatStatus> = () =>
+    sendCollectionHeartbeat(process.env.HEALTHCHECKS_PING_URL),
 ) {
   const expected = new TextEncoder().encode(secret ?? "");
   return async (request: Request): Promise<Response> => {
@@ -49,6 +56,14 @@ export function createCollectionHandler(
     const startedAt = new Date().toISOString();
     try {
       const result = await collect();
+      let monitoring: HeartbeatStatus = "not_attempted";
+      if (result.ok && result.savedPlayers === trackedPlayers.length) {
+        try {
+          monitoring = await heartbeat();
+        } catch {
+          monitoring = "failed";
+        }
+      }
       // All messages originate in the sanitized shared collector; never log requests or environment.
       console.info(
         JSON.stringify({
@@ -56,10 +71,11 @@ export function createCollectionHandler(
           startedAt,
           finishedAt: new Date().toISOString(),
           ...result,
+          monitoring,
         }),
       );
       return Response.json(
-        { startedAt, ...result },
+        { startedAt, ...result, monitoring },
         { status: result.ok ? 200 : 502, headers },
       );
     } catch {

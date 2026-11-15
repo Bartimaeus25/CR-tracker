@@ -118,11 +118,30 @@ npm run collector:status
 
 `collector:deploy` bundles the shared collector into gitignored `.local/supabase-collector/index.ts`, generates a dedicated job secret if needed, configures Edge secrets, deploys, and verifies both authentication rejection and a real import of both players. Re-run it after changing shared collection code or credentials. `collector:activate` verifies a real import again, upserts the job's Vault values, and registers the hourly job. Applying the SQL migration alone does not activate a job. `collector:verify` tests the deployed function without changing the schedule. No Docker or Supabase CLI is required.
 
-Supabase Dashboard **Cron** shows job dispatch history; **Edge Functions → collect-player-data → Logs** shows collection outcomes. `collector:status` reports the hourly job, recent HTTP status codes, cron dispatch runs, and both player timestamps. A successful cron entry proves the HTTP request was enqueued, not that collection completed: require HTTP 200 and advancing player timestamps. HTTP responses in `net._http_response` expire under the `pg_net` retention setting (normally six hours); private dispatch IDs remain in `tracker_private.collection_dispatches`. Missing older HTTP responses do not establish a failure. No alert service is configured.
+Supabase Dashboard **Cron** shows job dispatch history; **Edge Functions → collect-player-data → Logs** shows collection outcomes. `collector:status` reports the hourly job, recent HTTP status codes, cron dispatch runs, and both player timestamps. A successful cron entry proves the HTTP request was enqueued, not that collection completed: require HTTP 200 and advancing player timestamps. HTTP responses in `net._http_response` expire under the `pg_net` retention setting (normally six hours); private dispatch IDs remain in `tracker_private.collection_dispatches`. Missing older HTTP responses do not establish a failure. Optional external email alerts are configured separately below.
 
 The automatic path was verified with a temporary one-minute Supabase Cron job on 15 November 2026 at 10:46 UTC / 11:46 Berlin: dispatch succeeded, the Edge response was HTTP 200, and both player collection timestamps advanced by 10:46:06 UTC. That temporary job was removed; only the hourly job remains. GitHub's schedule was then removed.
 
 An hourly interval still depends on the upstream battlelog window and successful execution. Project availability, plan limits and Edge Function runtime limits apply. The Edge path retries imports in memory and does not keep the local CLI's disk outbox; after a terminal failure, use the manual refresh or retry before the upstream window moves on. Reload an open dashboard to see scheduled data, or use **Refresh data** for an immediate collection. See [Supabase scheduling](https://supabase.com/docs/guides/functions/schedule-functions).
+
+## Collection failure email alerts
+
+The Edge collector supports an external [Healthchecks.io](https://healthchecks.io/docs/) heartbeat. This monitor can alert even when the Supabase project itself is unavailable. A success heartbeat is sent only after the entire collection reports success and both players have been saved. Partial collections (including optional chest errors), exceptions and unauthorized requests do not renew the timer. Dashboard refresh and GitHub manual backup runs do not renew it either, so they cannot conceal a broken scheduled collector.
+
+Create a Healthchecks.io account verified with `jan.portius@web.de` and enable its email integration. Add its project read-write API key as `HEALTHCHECKS_API_KEY` in `.env.local`. Then:
+
+```bash
+npm run alerts:setup
+npm run collector:deploy -- --no-collection-test
+npm run alerts:arm
+npm run alerts:status
+```
+
+Setup creates or updates the dedicated check with **period 1 hour + grace 1 hour**, for an alert roughly two hours after the last successful heartbeat. The email integration is selected by matching the requested address in its name, or by using the project's single email integration. The API does not expose actual email addresses, so verify the recipient in the Healthchecks dashboard. No other integrations are assigned. Healthchecks sends a failure notification when the check transitions down and a recovery notification when it comes back up; optional repeated reminder emails are controlled in its account settings.
+
+The private ping URL is saved locally and deployed as `HEALTHCHECKS_PING_URL`; the management API key stays local. Heartbeats contain no player data or credentials and use an empty POST with bounded retries. Monitoring transport failures are logged as `monitoring: failed` without changing a successful collection into a failed database import. A monitor/network outage can therefore also generate a stale-heartbeat email. Treat both the API key and ping URL as secrets.
+
+The `--no-collection-test` deployment flag deliberately avoids invoking the collector or changing its schedule. `alerts:arm` sends one setup-only heartbeat for a new check, starting its initial two-hour timer without fetching any game data. After that, scheduled successful collections renew it. Re-running `arm` does not reset an already initialized check. No collection, deliberate outage or test email is triggered by `alerts:setup` or `alerts:status`. Email delivery and the full two-hour outage path must be verified separately; configuration alone does not prove inbox delivery.
 
 ## GitHub Actions manual backup
 
