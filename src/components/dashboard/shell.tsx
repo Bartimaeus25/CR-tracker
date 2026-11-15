@@ -62,6 +62,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
+          <Link href="/reports">Email reports <ArrowUpRight size={14} /></Link>
           <Link href="/#data-notes">
             Data & methodology <ArrowUpRight size={14} />
           </Link>
@@ -86,6 +87,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="app-footer">
+          <Link href="/reports">Email reports</Link>
           <span>
             RIVALRY <span className="footer-divider">/</span> Clash Royale
             tracker

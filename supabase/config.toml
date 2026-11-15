@@ -3,3 +3,6 @@ project_id = "clash-royale-rivalry-tracker"
 [functions.collect-player-data]
 # The handler verifies a dedicated server-to-server secret before doing any work.
 verify_jwt = false
+
+[functions.send-rivalry-report]
+verify_jwt = false

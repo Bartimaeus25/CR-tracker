@@ -145,6 +145,28 @@ The `--no-collection-test` deployment flag deliberately avoids invoking the coll
 
 Activated on 15 November 2026 using the verified account's email integration. The natural hourly run at 11:17 UTC / 12:17 Berlin returned HTTP 200, updated both players by 11:17:07 UTC, and renewed the external heartbeat at 11:17:08 UTC. No manual collection or schedule change was used for that verification. The monitor reports a one-hour period plus one-hour grace and an assigned email channel. No deliberate failure or test email was sent, so inbox delivery remains unverified.
 
+## Daily and on-demand email summaries
+
+The separate [Email Reports page](http://localhost:3000/reports) is linked in the sidebar and footer. The overview stays unchanged. It previews the last 24 hours and can send that summary to the server-side allowlist in `REPORT_RECIPIENTS` (comma-separated addresses, configured locally and in Edge secrets). Sending a report reads Supabase only; it does not collect game data or renew the collection heartbeat.
+
+The daily report arrives at **07:00 Europe/Berlin**, covering the previous Berlin calendar day. Supabase Cron runs `send-rivalry-report-daily` at UTC 05:00 and 06:00; its private dispatch function invokes the email worker only when the Berlin hour is 07, handling summer/winter time without changing the schedule. Only one candidate sends on each date. The first scheduled daily report after setup is 16 November 2026 at 07:00 Berlin.
+
+Reports contain current freshness for both players, the number of saved profile updates, full-period coverage (no observed gaps of at least two hours, a detected gap, or incomplete historical coverage), head-to-head wins/draws, and crowns. A currently fresh profile does not prove the whole day was healthy. Coverage uses saved profile observations, including manual collection; it describes data availability and is separate from Healthchecks' external scheduler monitoring.
+
+The worker sends through `smtp.web.de:465` using TLS certificate verification and a WEB.DE app password in `REPORT_SMTP_PASSWORD`. SMTP authentication requires mailbox POP3/IMAP access to be enabled. `reports:deploy` checks unauthenticated rejection and SMTP connection/login without sending email or fetching game data. Then `reports:activate` repeats that verification and registers the daily job. The `--reports` deployment option never invokes game collection.
+
+```bash
+npm run db:migrate
+npm run reports:deploy
+npm run reports:activate
+npm run reports:status
+npm run reports:preview
+```
+
+Delivery claims are stored in `tracker_private.report_deliveries`. Daily reports have one claim per period; on-demand requests have a database-enforced 15-minute global cooldown. A daily period is not automatically retried after an uncertain SMTP outcome, to avoid duplicates. Report status is visible on the Reports page and via `reports:status`. Mail-server acceptance does not prove inbox delivery. The dashboard currently has no sign-in; recipients are fixed server-side and requests are rate-limited, so public deployment should add user authorization before exposing email actions broadly.
+
+Healthchecks' own healthy-day digests are enabled separately in **Account → Email Reports → Daily**. Adding an Email integration gives an address failure/recovery notifications, not an account's periodic digest. For the two confirmed email integrations in this project, `npm run alerts:setup -- --include-second-email` attaches both to the failure check without resetting its heartbeat or triggering collection. The API exposes integration names, not underlying email addresses; confirm the recipients in the Healthchecks dashboard. The custom 07:00 report goes to both fixed recipients regardless of Healthchecks digest settings.
+
 ## GitHub Actions manual backup
 
 `.github/workflows/collect-player-data.yml` has only `workflow_dispatch`. Start it from GitHub **Actions → Collect player data → Run workflow**. The GitHub scheduler investigation is retained in [docs/scheduler-investigation.md](docs/scheduler-investigation.md) as historical context.

@@ -57,6 +57,7 @@ function report(check: z.infer<typeof checkSchema>) {
       periodSeconds: check.timeout,
       graceSeconds: check.grace,
       emailChannelAssigned: Boolean(check.channels),
+      emailChannelCount: check.channels.split(",").filter(Boolean).length,
       lastHeartbeat: check.last_ping,
       heartbeats: check.n_pings,
     }),
@@ -77,7 +78,14 @@ async function setup() {
   const channel =
     emails.find((value) => value.name.toLowerCase().includes(recipient)) ??
     (emails.length === 1 ? emails[0] : undefined);
-  if (!channel)
+  const includeSecond = process.argv.includes("--include-second-email");
+  const assignedChannels =
+    includeSecond && emails.length === 2
+      ? emails.map((value) => value.id)
+      : channel
+        ? [channel.id]
+        : [];
+  if (!assignedChannels.length || (includeSecond && emails.length !== 2))
     throw new Error(
       `Configure one verified email integration for ${recipient}, or name that integration with this address.`,
     );
@@ -90,7 +98,7 @@ async function setup() {
       timeout: 3600,
       grace: 3600,
       methods: "POST",
-      channels: channel.id,
+      channels: assignedChannels.join(","),
       desc: "Hourly Supabase collection at :17. Alert after two hours without a complete successful collection of both players. A setup-only heartbeat arms the initial timer; subsequent heartbeats come from the scheduled Edge collector. Check Supabase Cron, Edge Function logs, and npm run collector:status. The dashboard's local refresh does not reset this monitor.",
     }),
   );
@@ -98,7 +106,8 @@ async function setup() {
     check.timeout !== 3600 ||
     check.grace !== 3600 ||
     check.schedule ||
-    check.channels !== channel.id
+    check.channels.split(",").sort().join(",") !==
+      assignedChannels.sort().join(",")
   )
     throw new Error(
       "Healthchecks did not confirm the expected two-hour email policy.",

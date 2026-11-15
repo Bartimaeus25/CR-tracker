@@ -3047,3 +3047,36 @@ select {
 .matchup-names > strong > .match-player-1 {
   color: #edc37c;
 }
+
+.reports-panel {
+  padding: 24px;
+  max-width: 900px;
+}
+.report-controls {
+  margin: 24px 0;
+}
+.report-controls > p {
+  margin-top: 14px;
+}
+.report-preview {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+.report-preview summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.report-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.8;
+  margin-top: 18px;
+}
+@media (min-width: 1021px) {
+  .sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

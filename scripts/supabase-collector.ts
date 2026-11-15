@@ -5,13 +5,16 @@ import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import postgres from "postgres";
 
-const slug = "collect-player-data";
-const jobName = "collect-rivalry-players-hourly";
-const hourlySchedule = "17 * * * *";
+const reports = process.argv.includes("--reports");
+const slug = reports ? "send-rivalry-report" : "collect-player-data";
+const jobName = reports
+  ? "send-rivalry-report-daily"
+  : "collect-rivalry-players-hourly";
+const hourlySchedule = reports ? "0 5,6 * * *" : "17 * * * *";
 const artifact = path.join(
   process.cwd(),
   ".local",
-  "supabase-collector",
+  reports ? "supabase-report" : "supabase-collector",
   "index.ts",
 );
 loadEnvConfig(process.cwd(), true, { info() {}, error() {} });
@@ -51,8 +54,11 @@ async function database() {
 }
 
 async function bundle() {
+  const smtpVersion = JSON.parse(
+    await readFile("node_modules/nodemailer/package.json", "utf8"),
+  ).version;
   const result = await build({
-    entryPoints: ["supabase/functions/collect-player-data/index.ts"],
+    entryPoints: [`supabase/functions/${slug}/index.ts`],
     bundle: true,
     write: false,
     format: "esm",
@@ -66,15 +72,20 @@ async function bundle() {
       "process.env.SUPABASE_URL": "__collectorEnv.url",
       "process.env.SUPABASE_SECRET_KEY": "__collectorEnv.databaseKey",
       "process.env.HEALTHCHECKS_PING_URL": "__collectorEnv.heartbeatUrl",
+      "process.env.REPORT_RECIPIENTS": "__collectorEnv.reportRecipients",
     },
     banner: {
-      js: 'const __collectorEnv = { apiKey: Deno.env.get("CLASH_ROYALE_API_KEY"), url: Deno.env.get("SUPABASE_URL"), databaseKey: Deno.env.get("RIVALRY_SUPABASE_SECRET_KEY"), heartbeatUrl: Deno.env.get("HEALTHCHECKS_PING_URL") };',
+      js: 'const __collectorEnv = { apiKey: Deno.env.get("CLASH_ROYALE_API_KEY"), url: Deno.env.get("SUPABASE_URL"), databaseKey: Deno.env.get("RIVALRY_SUPABASE_SECRET_KEY"), heartbeatUrl: Deno.env.get("HEALTHCHECKS_PING_URL"), reportRecipients: Deno.env.get("REPORT_RECIPIENTS") };',
     },
     // The app's server-only marker is retained everywhere else; the Edge artifact is server code.
     plugins: [
       {
         name: "edge-server-only",
         setup(builder) {
+          builder.onResolve({ filter: /^nodemailer$/ }, () => ({
+            path: `npm:nodemailer@${smtpVersion}`,
+            external: true,
+          }));
           builder.onResolve({ filter: /^server-only$/ }, () => ({
             path: "server-only",
             namespace: "edge-marker",
@@ -98,6 +109,7 @@ async function bundle() {
     "DATABASE_URL",
     "HEALTHCHECKS_API_KEY",
     "HEALTHCHECKS_PING_URL",
+    "REPORT_SMTP_PASSWORD",
   ]) {
     if (process.env[name] && source.includes(process.env[name]!))
       throw new Error("Secret found in generated bundle.");
@@ -146,15 +158,35 @@ async function verify() {
   const response = await fetch(url, {
     method: "POST",
     headers: { "x-collection-secret": required("COLLECTION_CRON_SECRET") },
+    ...(reports ? { body: JSON.stringify({ kind: "verify-smtp" }) } : {}),
     signal: AbortSignal.timeout(140_000),
   });
   if (!response.ok) {
+    if (reports) {
+      const details = await response.json().catch(() => ({}));
+      const code =
+        typeof details.diagnostic === "string" &&
+        /^[A-Za-z0-9_]{2,64}$/.test(details.diagnostic)
+          ? details.diagnostic
+          : "UNKNOWN";
+      throw new Error(
+        `Live Edge report verification returned HTTP ${response.status} (${code}). No email was sent.`,
+      );
+    }
     await response.body?.cancel();
     throw new Error(
       `Live Edge collection returned HTTP ${response.status}. Inspect the function logs.`,
     );
   }
   const summary = await response.json();
+  if (reports) {
+    if (summary.ok !== true)
+      throw new Error("Live Edge report SMTP verification failed.");
+    console.log(
+      "Verified report authentication and SMTP connection. No email or game API request was sent.",
+    );
+    return;
+  }
   if (summary.ok !== true || summary.savedPlayers !== 2)
     throw new Error(
       "Live Edge collection did not confirm both player imports.",
@@ -199,6 +231,15 @@ async function deploy() {
             {
               name: "HEALTHCHECKS_PING_URL",
               value: process.env.HEALTHCHECKS_PING_URL.trim(),
+            },
+          ]
+        : []),
+      ...(reports
+        ? [
+            { name: "REPORT_RECIPIENTS", value: required("REPORT_RECIPIENTS") },
+            {
+              name: "REPORT_SMTP_PASSWORD",
+              value: required("REPORT_SMTP_PASSWORD"),
             },
           ]
         : []),
@@ -253,7 +294,10 @@ async function activate() {
           await transaction`select vault.update_secret(${rows[0].id}::uuid, ${value})`;
         else await transaction`select vault.create_secret(${value}, ${name})`;
       }
-      await transaction`select cron.schedule(${jobName}, ${hourlySchedule}, 'select tracker_private.dispatch_player_collection();')`;
+      const command = reports
+        ? "select tracker_private.dispatch_daily_report();"
+        : "select tracker_private.dispatch_player_collection();";
+      await transaction`select cron.schedule(${jobName}, ${hourlySchedule}, ${command})`;
     });
     console.log(
       `Activated Supabase Cron job ${jobName}: ${hourlySchedule} (UTC).`,
@@ -273,8 +317,9 @@ async function status() {
     );
     console.log(
       JSON.stringify({
-        dispatches:
-          await sql`select d.request_id, d.requested_at, r.status_code, r.timed_out, (r.error_msg is not null) as transport_error from tracker_private.collection_dispatches d left join net._http_response r on r.id = d.request_id order by d.requested_at desc limit 5`,
+        dispatches: reports
+          ? await sql`select kind,status,created_at,finished_at,accepted_count from tracker_private.report_deliveries order by created_at desc limit 5`
+          : await sql`select d.request_id, d.requested_at, r.status_code, r.timed_out, (r.error_msg is not null) as transport_error from tracker_private.collection_dispatches d left join net._http_response r on r.id = d.request_id order by d.requested_at desc limit 5`,
       }),
     );
     console.log(
