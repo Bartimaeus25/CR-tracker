@@ -383,7 +383,8 @@ export function advancedStats(matches: Match[], tag: string) {
     return view?.result ? [{ match, view }] : [];
   });
   const games = scored.flatMap(({ view }) => view.games);
-  const eligible = scored
+  const eligible = [...scored]
+    .reverse()
     .filter(({ match }) => allowsDeckAnalysis(match))
     .flatMap(({ view }) => view.games)
     .filter((game) => deckKey(game.cards));
@@ -395,14 +396,20 @@ export function advancedStats(matches: Match[], tag: string) {
     losses: number;
     draws: number;
     winRate: number;
+    crowns: number;
+    conceded: number;
+    currentUnbeaten: number;
+    longestUnbeaten: number;
+    currentWins: number;
   };
   const cards = new Map<string, RecordStats>();
   const pairs = new Map<string, RecordStats>();
   const add = (
     groups: Map<string, RecordStats>,
     groupCards: Card[],
-    result: Result,
+    game: (typeof eligible)[number],
   ) => {
+    const result = game.result;
     const sorted = [...groupCards].sort((a, b) => a.id - b.id);
     const key = sorted.map((card) => card.id).join("-");
     const row = groups.get(key) ?? {
@@ -413,8 +420,19 @@ export function advancedStats(matches: Match[], tag: string) {
       losses: 0,
       draws: 0,
       winRate: 0,
+      crowns: 0,
+      conceded: 0,
+      currentUnbeaten: 0,
+      longestUnbeaten: 0,
+      currentWins: 0,
     };
     row.played++;
+    row.cards = sorted;
+    row.crowns += game.crowns;
+    row.conceded += game.conceded;
+    row.currentUnbeaten = result === "loss" ? 0 : row.currentUnbeaten + 1;
+    row.longestUnbeaten = Math.max(row.longestUnbeaten, row.currentUnbeaten);
+    row.currentWins = result === "win" ? row.currentWins + 1 : 0;
     if (result === "win") row.wins++;
     if (result === "loss") row.losses++;
     if (result === "draw") row.draws++;
@@ -423,18 +441,25 @@ export function advancedStats(matches: Match[], tag: string) {
   };
   for (const game of eligible) {
     for (const [index, card] of game.cards.entries()) {
-      add(cards, [card], game.result);
+      add(cards, [card], game);
       for (const second of game.cards.slice(index + 1))
-        add(pairs, [card, second], game.result);
+        add(pairs, [card, second], game);
     }
   }
   const rank = (groups: Map<string, RecordStats>) =>
-    [...groups.values()].sort(
-      (a, b) =>
-        b.winRate - a.winRate ||
-        b.played - a.played ||
-        a.key.localeCompare(b.key),
-    );
+    [...groups.values()]
+      .map((row) => ({
+        ...row,
+        usageRate: eligible.length ? (row.played / eligible.length) * 100 : 0,
+        averageCrowns: row.crowns / row.played,
+        averageConceded: row.conceded / row.played,
+      }))
+      .sort(
+        (a, b) =>
+          b.winRate - a.winRate ||
+          b.played - a.played ||
+          a.key.localeCompare(b.key),
+      );
   const modes = new Map<
     string,
     {
