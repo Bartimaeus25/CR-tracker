@@ -3,8 +3,8 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { trackedPlayers } from "../src/config/players";
-import { ClashRoyaleApiError, ClashRoyaleClient, type UpcomingChests } from "../src/lib/clash-royale/client";
-import { collectionSchema } from "../src/lib/collection";
+import { ClashRoyaleApiError, ClashRoyaleClient } from "../src/lib/clash-royale/client";
+import { capturePlayer } from "../src/lib/clash-royale/capture";
 import { CollectionStorageError, saveCollection } from "../src/lib/supabase";
 
 async function main() {
@@ -16,24 +16,14 @@ async function main() {
 
   for (const player of trackedPlayers) {
     try {
-      const profile = await client.getPlayer(player.tag);
-      const battles = await client.getBattlelog(player.tag);
-      let upcomingChests: UpcomingChests | null = null;
-      let chestsError: string | null = null;
-      try {
-        upcomingChests = await client.getUpcomingChests(player.tag);
-      } catch (error) {
-        chestsError = error instanceof ClashRoyaleApiError ? error.message : "Upcoming chest request failed.";
-        console.warn(`PARTIAL ${player.name}: ${chestsError}`);
+      const collection = await capturePlayer(client, player.tag);
+      if (collection.upcoming_chests_error) {
+        console.warn(`PARTIAL ${player.name}: ${collection.upcoming_chests_error}`);
         failures++;
       }
-      const collection = collectionSchema.parse({
-        player_tag: player.tag, observed_at: new Date().toISOString(),
-        profile, battles, upcoming_chests: upcomingChests, upcoming_chests_error: chestsError,
-      });
       const filename = `${collection.observed_at.replace(/[:.]/g, "-")}-${randomUUID()}.json`;
       await writeFile(path.join(pendingDirectory, filename), JSON.stringify(collection), { flag: "wx", mode: 0o600 });
-      console.log(`CAPTURED ${player.name}: profile, ${battles.length} battles, ${upcomingChests?.items.length ?? 0} upcoming chests.`);
+      console.log(`CAPTURED ${player.name}: profile, ${collection.battles.length} battles, ${collection.upcoming_chests?.items.length ?? 0} upcoming chests.`);
     } catch (error) {
       console.error(`FAILED ${player.name}: ${error instanceof ClashRoyaleApiError ? error.message : "Could not capture player data."}`);
       failures++;

@@ -76,7 +76,7 @@ export async function saveCollection(input: unknown, fetcher: typeof fetch = fet
       signal: AbortSignal.timeout(30_000),
     });
   } catch {
-    throw new CollectionStorageError("Supabase request failed. The captured collection remains available for retry.");
+    throw new CollectionStorageError("Supabase request failed. Please retry the collection import.");
   }
   if (!response.ok) {
     await response.body?.cancel();

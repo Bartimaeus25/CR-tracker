@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { usePathname } from "next/navigation";
+import { useState, useTransition } from "react";
+import { refreshPlayerData } from "@/app/actions";
 import {
   ArrowUpRight,
   Crown,
@@ -11,6 +12,7 @@ import {
   RefreshCw,
   Swords,
   Users,
+  X,
 } from "lucide-react";
 
 const navigation = [
@@ -96,18 +98,53 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 }
 
 export function RefreshButton() {
-  const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const handleRefresh = () => {
+    setFeedback(null);
+    startTransition(async () => {
+      try {
+        const result = await refreshPlayerData();
+        setFeedback({ ok: result.ok, message: result.message });
+      } catch {
+        setFeedback({
+          ok: false,
+          message: "Refresh failed. Check your connection and try again.",
+        });
+      }
+    });
+  };
   return (
-    <button
-      type="button"
-      className="button button-secondary refresh-button"
-      disabled={pending}
-      onClick={() => startTransition(() => router.refresh())}
-      title="Reload stored data without running collection"
-    >
-      <RefreshCw size={15} className={pending ? "spinning" : ""} />
-      <span>{pending ? "Refreshing…" : "Refresh view"}</span>
-    </button>
+    <div className="refresh-control">
+      <button
+        type="button"
+        className="button button-secondary refresh-button"
+        disabled={pending}
+        onClick={handleRefresh}
+        aria-busy={pending}
+        title="Fetch both players from the Clash Royale API and update the dashboard"
+      >
+        <RefreshCw size={15} className={pending ? "spinning" : ""} />
+        <span>{pending ? "Fetching data…" : "Refresh data"}</span>
+      </button>
+      {feedback && (
+        <div
+          className={`refresh-feedback ${feedback.ok ? "success" : "error"}`}
+          role={feedback.ok ? "status" : "alert"}
+        >
+          <span>{feedback.message}</span>
+          <button
+            type="button"
+            aria-label="Dismiss refresh message"
+            onClick={() => setFeedback(null)}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
