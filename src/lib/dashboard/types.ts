@@ -25,6 +25,8 @@ export interface Player {
   chests: { name: string; index: number }[];
   chestsCollected: string | null;
   lastCollected: string | null;
+  rankedRating?: number | null;
+  rankedLeague?: number | null;
 }
 
 export interface Participant {
@@ -62,6 +64,7 @@ export interface TrophyObservation {
   tag: string;
   time: string;
   trophies: number;
+  rankedRating?: number | null;
 }
 
 export interface DashboardData {

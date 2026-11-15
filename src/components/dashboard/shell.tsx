@@ -13,10 +13,12 @@ import {
   Swords,
   Users,
   X,
+  ChartNoAxesCombined,
 } from "lucide-react";
 
 const navigation = [
   { href: "/", label: "Overview", icon: Grid2X2 },
+  { href: "/stats", label: "Stats", icon: ChartNoAxesCombined },
   { href: "/matches", label: "Matches", icon: Swords },
   { href: "/decks", label: "Decks", icon: Layers3 },
   { href: "/players", label: "Players", icon: Users },
@@ -62,7 +64,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="sidebar-bottom">
-          <Link href="/reports">Email reports <ArrowUpRight size={14} /></Link>
+          <Link href="/reports">
+            Email reports <ArrowUpRight size={14} />
+          </Link>
           <Link href="/#data-notes">
             Data & methodology <ArrowUpRight size={14} />
           </Link>

@@ -60,7 +60,11 @@ export default async function PlayerPage({
         <CurrentDeck player={player} />
       </div>
       <div className="two-column section-block">
-        <PerformanceChart matches={data.matches} players={data.players} />
+        <PerformanceChart
+          matches={data.matches}
+          players={data.players}
+          variant={data.scope === "direct" ? "rivalry" : "overall"}
+        />
         <TrophyChart
           observations={data.observations}
           player={player}

@@ -168,6 +168,12 @@ export async function loadDashboardData(
           )
           .at(-1)?.observed_at ?? null,
       lastCollected: row?.last_collected_at ?? null,
+      rankedRating: numeric(
+        record(profile.currentPathOfLegendSeasonResult).trophies,
+      ),
+      rankedLeague: numeric(
+        record(profile.currentPathOfLegendSeasonResult).leagueNumber,
+      ),
     };
   });
   const trackedTags = new Set<string>(
@@ -250,7 +256,19 @@ export async function loadDashboardData(
         const trophies = numeric(row.player_snapshots.profile.trophies);
         return trophies === null
           ? []
-          : [{ tag: row.player_tag, time: row.observed_at, trophies }];
+          : [
+              {
+                tag: row.player_tag,
+                time: row.observed_at,
+                trophies,
+                rankedRating: numeric(
+                  record(
+                    row.player_snapshots.profile
+                      .currentPathOfLegendSeasonResult,
+                  ).trophies,
+                ),
+              },
+            ];
       }),
     collectionStarted: times.length
       ? times.map((row) => row.first_collected_at).sort()[0]
