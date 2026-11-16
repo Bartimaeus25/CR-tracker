@@ -131,7 +131,7 @@ export function RefreshButton() {
         disabled={pending}
         onClick={handleRefresh}
         aria-busy={pending}
-        title="Fetch both players from the Clash Royale API and update the dashboard"
+        title="Fetch all tracked players from the Clash Royale API and update the dashboard"
       >
         <RefreshCw size={15} className={pending ? "spinning" : ""} />
         <span>{pending ? "Fetching data…" : "Refresh data"}</span>

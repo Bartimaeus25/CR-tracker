@@ -12,9 +12,9 @@ const request = () =>
   });
 const success = {
   ok: true,
-  savedPlayers: 2,
+  savedPlayers: 3,
   newBattles: 0,
-  message: "Both players refreshed.",
+  message: "All 3 players refreshed.",
 };
 
 test("heartbeat sends an empty POST only to its configured monitoring endpoint", async () => {

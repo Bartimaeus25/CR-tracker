@@ -1,3 +1,4 @@
+import { trackedPlayers } from "../src/config/players";
 import { loadEnvConfig } from "@next/env";
 import { build } from "esbuild";
 import { randomBytes } from "node:crypto";
@@ -187,12 +188,12 @@ async function verify() {
     );
     return;
   }
-  if (summary.ok !== true || summary.savedPlayers !== 2)
+  if (summary.ok !== true || summary.savedPlayers !== trackedPlayers.length)
     throw new Error(
-      "Live Edge collection did not confirm both player imports.",
+      "Live Edge collection did not confirm all configured player imports.",
     );
   console.log(
-    `Verified authentication and live collection: both players saved, ${summary.newBattles} new matches.`,
+    `Verified authentication and live collection: ${summary.savedPlayers} players saved, ${summary.newBattles} new matches.`,
   );
 }
 

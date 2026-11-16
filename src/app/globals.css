@@ -761,6 +761,33 @@ select {
   background: #b3904512;
   border-color: #ad90543d;
 }
+.comparison-selector {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 28px;
+  padding: 16px;
+  border: 1px solid #26334a;
+  border-radius: 12px;
+  background: #111a29;
+}
+.comparison-selector label {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 160px;
+  font-size: 12px;
+  color: #a9b6cb;
+}
+.comparison-selector select {
+  width: 100%;
+  padding: 10px 30px 10px 12px;
+}
+.comparison-versus {
+  padding-bottom: 12px;
+  color: #a9b6cb;
+  font-size: 12px;
+}
 .chart-heading {
   display: flex;
   align-items: center;

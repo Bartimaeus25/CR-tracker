@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { trackedPlayers } from "@/config/players";
+import { defaultComparison, resolveComparison } from "@/config/players";
 import { readSupabaseRows } from "@/lib/supabase";
 import { isDirectMatch, supportsScoring } from "./stats";
 import type { Card, DashboardData, DuelRound, Match, Player } from "./types";
@@ -102,7 +102,10 @@ function modeName(type: string, raw: string): string {
 
 export async function loadDashboardData(
   scope: "direct" | "all" = "direct",
+  first: string = defaultComparison[0].tag,
+  second: string = defaultComparison[1].tag,
 ): Promise<DashboardData> {
+  const selectedPlayers = resolveComparison(first, second);
   const [playerRows, battleRows, observations] = await Promise.all([
     readSupabaseRows("players", "*", "tag.asc", playerRowSchema),
     readSupabaseRows(
@@ -118,7 +121,7 @@ export async function loadDashboardData(
       observationSchema,
     ),
   ]);
-  const players: Player[] = trackedPlayers.map((configured) => {
+  const players: Player[] = selectedPlayers.map((configured) => {
     const row = playerRows.find((player) => player.tag === configured.tag);
     const profile = row?.latest_profile ?? {};
     const badges = Array.isArray(profile.badges)
@@ -177,7 +180,7 @@ export async function loadDashboardData(
     };
   });
   const trackedTags = new Set<string>(
-    trackedPlayers.map((player) => player.tag),
+    selectedPlayers.map((player) => player.tag),
   );
   const matches: Match[] = battleRows
     .filter((row) =>

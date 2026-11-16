@@ -712,7 +712,7 @@ export function DataNotes({ data }: { data: DashboardData }) {
           The API supplies a recent battle window. Earlier matches are available
           only if they were captured. Profile trophies and observed trophy
           history are separate from match trophy changes. Refresh data fetches
-          both players from the API and updates the view. Collection is also
+          all tracked players from the API and updates the view. Collection is also
           scheduled hourly through Supabase Cron.
         </p>
       </div>
