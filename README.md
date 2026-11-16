@@ -21,7 +21,7 @@ Start the application with `npm run dev`, then visit http://localhost:3000. Use 
 
 ## Rivalry dashboard
 
-The default comparison is **Sprengmeister vs Bartimaues**. Use the player comparison selectors above the dashboard to choose any two of Sprengmeister, Retrum, and Bartimaues. The selected pair is remembered in this browser and applies across Overview, Stats, Matches, Decks and Players. Statistics and history are limited to the selected pair; all three players continue to be collected hourly and on manual refresh. Email summaries always use the default comparison.
+The default comparison is **Sprengmeister vs Bartimaues**. Use the small players icon beside Refresh data to open the comparison picker to choose any two of Sprengmeister, Retrum, and Bartimaues. The selected pair is remembered in this browser and applies across Overview, Stats, Matches, Decks and Players. Statistics and history are limited to the selected pair; all three players continue to be collected hourly and on manual refresh. Email summaries always use the default comparison.
 
 
 The dashboard uses the existing Supabase schema and collection pipeline. It displays real stored data, with loading, unavailable-data, missing-record, and empty states. The responsive layout includes a desktop sidebar and mobile bottom navigation. Card and badge artwork comes from the API's stored `api-assets.clashroyale.com` URLs. Geist and Barlow Condensed fonts are bundled locally.

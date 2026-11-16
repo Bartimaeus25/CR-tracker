@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useTransition } from "react";
 import { refreshPlayerData } from "@/app/actions";
+import { ComparisonSelector } from "./comparison-selector";
 import {
   ArrowUpRight,
   Crown,
@@ -24,7 +25,10 @@ const navigation = [
   { href: "/players", label: "Players", icon: Users },
 ];
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+export function DashboardShell({ children, comparison }: {
+  children: React.ReactNode;
+  comparison: string[];
+}) {
   const pathname = usePathname();
   const section = navigation.find((item) =>
     item.href === "/" ? pathname === "/" : pathname.startsWith(item.href),
@@ -85,7 +89,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           <span className="topbar-note">
             <span className="status-dot" /> Stored match data
           </span>
-          <RefreshButton />
+          <div className="topbar-actions">
+            <ComparisonSelector pair={comparison} />
+            <RefreshButton />
+          </div>
         </header>
         <main id="main-content" className="main-content">
           {children}
