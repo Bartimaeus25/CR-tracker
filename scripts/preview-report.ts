@@ -1,13 +1,13 @@
 import { loadEnvConfig } from "@next/env";
 import { mkdir, writeFile } from "node:fs/promises";
-import { getDashboardData } from "../src/lib/dashboard/data";
+import { loadDashboardData } from "../src/lib/dashboard/load";
 import { buildReport, reportWindow } from "../src/lib/reports/summary";
 
 loadEnvConfig(process.cwd(), true, { info() {}, error() {} });
 async function main() {
   const now = new Date();
   const report = buildReport(
-    await getDashboardData("all"),
+    await loadDashboardData("all"),
     reportWindow(process.argv.includes("--daily") ? "daily" : "manual", now),
     now,
   );

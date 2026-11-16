@@ -29,7 +29,7 @@ export default async function PlayerPage({
 }) {
   const { tag } = await params;
   const query = await searchParams;
-  const data = await getDashboardData(query.scope === "all" ? "all" : "direct");
+  const data = await getDashboardData(query.scope === "all" ? "all" : "direct", `#${tag.replace(/^#/, "").toUpperCase()}`);
   const index = data.players.findIndex(
     (player) =>
       player.tag.replace(/^#/, "").toUpperCase() ===

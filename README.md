@@ -4,6 +4,7 @@ Clash Royale tracker
 #### Player Tags
 Sprengmeister: #2CVGR2R8R
 Bartimaues: #9Q2PQLG0L
+Retrum: #8V22J2U02
 
 ## Local setup
 
@@ -19,6 +20,9 @@ If `.env.local` already exists, edit it directly. Set `CLASH_ROYALE_API_KEY`, `S
 Start the application with `npm run dev`, then visit http://localhost:3000. Use Node.js 22.12 or newer in the terminal running this command. All dashboard pages read the current stored Supabase data on the server.
 
 ## Rivalry dashboard
+
+The default comparison is **Sprengmeister vs Retrum**. Use the player comparison selectors above the dashboard to choose any two of Sprengmeister, Retrum, and Bartimaues. The selected pair is remembered in this browser and applies across Overview, Stats, Matches, Decks and Players. Statistics and history are limited to the selected pair; all three players continue to be collected hourly and on manual refresh. Email summaries always use the default comparison.
+
 
 The dashboard uses the existing Supabase schema and collection pipeline. It displays real stored data, with loading, unavailable-data, missing-record, and empty states. The responsive layout includes a desktop sidebar and mobile bottom navigation. Card and badge artwork comes from the API's stored `api-assets.clashroyale.com` URLs. Geist and Barlow Condensed fonts are bundled locally.
 
@@ -42,7 +46,7 @@ Performance statistics score known standard 1v1 battle types with valid crown to
 
 Deck analytics require eight distinct card IDs. Each duel round contributes its own deck and game result, and the interface labels these counts as games/rounds. Card order and upgrade levels do not split a deck group. Draft, random, mirror, and preset event decks are excluded. Average elixir is unavailable when a card's cost is missing or variable. Deck matchups require at least three recorded games or duel rounds and show sample sizes. Pairings with fewer than ten games are labelled as early samples, with no counter claims.
 
-All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh data** fetches fresh API data for both configured players, saves it to Supabase, and updates the current view. Supabase Cron also collects new API data hourly, and `npm run sync` can collect data locally.
+All displayed timestamps use Europe/Berlin, including daylight-saving changes. Expand **About these statistics** for the stored battle window and calculation rules. **Refresh data** fetches fresh API data for all configured players, saves it to Supabase, and updates the current view. Supabase Cron also collects new API data hourly, and `npm run sync` can collect data locally.
 
 The manual refresh runs through a same-origin Next.js Server Action with fixed server-side player configuration. It reuses the scheduled collector's capture, validation, API retries, and idempotent database import logic. The button is disabled while fetching and displays success, new-match counts, or partial/failure messages. Simultaneous manual requests in the same server process share one in-flight collection. Secrets stay server-side, and partial success refreshes the view with whichever players were saved. The current local dashboard has no sign-in, so visitors who can reach its server can invoke this fixed refresh operation.
 
@@ -68,7 +72,7 @@ Configure the official Supercell API key to allow RoyaleAPI's proxy IP `45.79.21
 npm run verify:api
 ```
 
-The script loads `.env.local` using Next.js environment conventions. Existing process variables take precedence. It requests each configured player's profile and recent battlelog, validates the responses, and prints one concise result per player. Success requires both endpoints to succeed for both players and ends with `Verified 2/2 players.` A failure sets a nonzero exit code and still attempts the other player.
+The script loads `.env.local` using Next.js environment conventions. Existing process variables take precedence. It requests each configured player's profile and recent battlelog, validates the responses, and prints one concise result per player. Success requires both endpoints to succeed for all configured players and ends with `Verified 2/2 players.` A failure sets a nonzero exit code and still attempts the other player.
 
 HTTP 403 usually requires checking the key and proxy IP allowlist. HTTP 404 requires checking the tag. HTTP 429 indicates rate limiting. Network errors, HTTP 429, and server errors receive up to three attempts with a ten-second timeout per request. Retry-After is respected up to a thirty-second wait. Longer Retry-After values return a failure so the command can be rerun later. Error output excludes response bodies and credentials.
 
@@ -108,7 +112,7 @@ Collection preserves only what the API currently returns. Battles that disappear
 
 ## Hourly collection with Supabase
 
-Supabase Cron job `collect-rivalry-players-hourly` runs `17 * * * *` (every hour at minute 17 UTC). It uses `pg_net` to call the `collect-player-data` Edge Function, which fetches both profiles, battlelogs, and chest sequences and saves them through the existing atomic import RPC. It runs while the development computer is offline. Normal collection makes six Clash Royale API requests. API retries, schema validation, raw data preservation, battle identity and deduplication are shared with the local/manual collector. Edge imports retry up to three times per player. One player's failure does not prevent collection of the other.
+Supabase Cron job `collect-rivalry-players-hourly` runs `17 * * * *` (every hour at minute 17 UTC). It uses `pg_net` to call the `collect-player-data` Edge Function, which fetches both profiles, battlelogs, and chest sequences and saves them through the existing atomic import RPC. It runs while the development computer is offline. Normal collection makes nine Clash Royale API requests. API retries, schema validation, raw data preservation, battle identity and deduplication are shared with the local/manual collector. Edge imports retry up to three times per player. One player's failure does not prevent collection of the other.
 
 The scheduler uses a dedicated random `COLLECTION_CRON_SECRET`, stored in Supabase Vault and Edge Function secrets. The function verifies it in `x-collection-secret` before doing work; `verify_jwt` is disabled because this is a custom service-to-service credential. Requests cannot specify player tags or API destinations. The privileged database key and Clash Royale key are available only to the Edge Function. `SUPABASE_ACCESS_TOKEN` is used locally for deployment and is never deployed to the function or stored in Vault.
 
@@ -156,7 +160,7 @@ The separate [Email Reports page](http://localhost:3000/reports) is linked in th
 
 The daily report arrives at **07:00 Europe/Berlin**, covering the previous Berlin calendar day. Supabase Cron runs `send-rivalry-report-daily` at UTC 05:00 and 06:00; its private dispatch function invokes the email worker only when the Berlin hour is 07, handling summer/winter time without changing the schedule. Only one candidate sends on each date. The first scheduled daily report after setup is 16 November 2026 at 07:00 Berlin.
 
-Reports contain current freshness for both players, the number of saved profile updates, full-period coverage (no observed gaps of at least two hours, a detected gap, or incomplete historical coverage), head-to-head wins/draws, and crowns. A currently fresh profile does not prove the whole day was healthy. Coverage uses saved profile observations, including manual collection; it describes data availability and is separate from Healthchecks' external scheduler monitoring.
+Reports contain current freshness for all configured players, the number of saved profile updates, full-period coverage (no observed gaps of at least two hours, a detected gap, or incomplete historical coverage), head-to-head wins/draws, and crowns. A currently fresh profile does not prove the whole day was healthy. Coverage uses saved profile observations, including manual collection; it describes data availability and is separate from Healthchecks' external scheduler monitoring.
 
 The worker sends through `smtp.web.de:465` using TLS certificate verification and a WEB.DE app password in `REPORT_SMTP_PASSWORD`. SMTP authentication requires mailbox POP3/IMAP access to be enabled. `reports:deploy` checks unauthenticated rejection and SMTP connection/login without sending email or fetching game data. Then `reports:activate` repeats that verification and registers the daily job. The `--reports` deployment option never invokes game collection.
 
@@ -178,7 +182,7 @@ Healthchecks' own healthy-day digests are enabled separately in **Account → Em
 
 The workflow uses Node.js 22, `npm ci`, and the existing `npm run sync` command. It reads the three repository secrets `CLASH_ROYALE_API_KEY`, `SUPABASE_URL`, and `SUPABASE_SECRET_KEY`. Set `SUPABASE_URL` to the base project URL. Database migrations are managed separately with `DATABASE_URL` locally.
 
-Normal collection makes six Clash Royale API requests per run, covering profiles, battlelogs, and upcoming chests for both players. Supabase imports remain idempotent. The workflow serializes collection jobs and retries a failed collection up to three times, with twenty seconds between attempts, in addition to the API client's bounded request retries.
+Normal collection makes nine Clash Royale API requests per run, covering profiles, battlelogs, and upcoming chests for all configured players. Supabase imports remain idempotent. The workflow serializes collection jobs and retries a failed collection up to three times, with twenty seconds between attempts, in addition to the API client's bounded request retries.
 
 After a failed run, remaining JSON captures are uploaded as `pending-player-data-<run-id>-<attempt>` artifacts and retained for thirty days. To recover them, download the artifact from that workflow run, extract its JSON files into the local gitignored `.local/pending` directory, and run `npm run sync`. Successful imports remove their pending files. Artifacts are recovery copies and are not restored automatically into later runners. They contain game data and are available to people with the repository's artifact access.
 
@@ -190,7 +194,7 @@ Check the workflow's conclusion and logs when investigating manual backup failur
 src/
   app/                     Dashboard routes, layout, loading/error states, and Tailwind styles
   components/dashboard/    Navigation, player comparisons, filters, charts, decks, and artwork
-  config/players.ts        The two player tags above
+  config/players.ts        The configured player tags above
   lib/clash-royale/client.ts  Server-only API client and response validation
   lib/collection.ts         Battle identity, normalization, and content hashing
   lib/supabase.ts           Transactional collection import through the Data API

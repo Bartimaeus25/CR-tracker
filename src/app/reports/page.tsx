@@ -1,7 +1,7 @@
 import { Mail } from "lucide-react";
 import { PageHeading } from "@/components/dashboard/ui";
 import { ReportControls } from "@/components/dashboard/report-controls";
-import { getDashboardData } from "@/lib/dashboard/data";
+import { loadDashboardData } from "@/lib/dashboard/load";
 import { buildReport, reportWindow } from "@/lib/reports/summary";
 import { getReportStatus, getReportRecipients } from "@/lib/reports/send";
 import { displayDate } from "@/lib/dashboard/format";
@@ -11,7 +11,7 @@ export default async function ReportsPage() {
   const status = await getReportStatus();
   const recipients = getReportRecipients();
   const report = buildReport(
-    await getDashboardData("all"),
+    await loadDashboardData("all"),
     reportWindow("manual", now),
     now,
   );

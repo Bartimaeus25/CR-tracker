@@ -51,7 +51,7 @@ async function collectAndSave(
 
   const prefix =
     savedPlayers === trackedPlayers.length
-      ? "Both players refreshed"
+      ? `All ${trackedPlayers.length} players refreshed`
       : `${savedPlayers}/${trackedPlayers.length} players refreshed`;
   return {
     ok: issues.length === 0,

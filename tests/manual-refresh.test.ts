@@ -42,7 +42,7 @@ function createApi(calls: string[] = []): PlayerApi {
   };
 }
 
-test("manual refresh fetches profiles, battlelogs, and chests for both players before reporting saved results", async () => {
+test("manual refresh fetches profiles, battlelogs, and chests for all tracked players before reporting saved results", async () => {
   const calls: string[] = [];
   const saved: PlayerCollection[] = [];
   const result = await refreshTrackedPlayers({
@@ -58,16 +58,16 @@ test("manual refresh fetches profiles, battlelogs, and chests for both players b
     },
   });
   assert.equal(result.ok, true);
-  assert.equal(result.savedPlayers, 2);
+  assert.equal(result.savedPlayers, trackedPlayers.length);
   assert.equal(result.newBattles, 1);
-  assert.equal(calls.length, 6);
+  assert.equal(calls.length, trackedPlayers.length * 3);
   assert.deepEqual(
     saved.map((collection) => collection.player_tag),
     trackedPlayers.map((player) => player.tag),
   );
   assert.equal(saved[0].profile.futureField, true);
   assert.equal(saved[0].upcoming_chests?.items[0].name, "Golden Chest");
-  assert.match(result.message, /Both players refreshed/);
+  assert.match(result.message, /All 3 players refreshed/);
 });
 
 test("a failed player fetch still allows the other player to save and hides unexpected error details", async () => {
@@ -92,9 +92,9 @@ test("a failed player fetch still allows the other player to save and hides unex
     },
   });
   assert.equal(result.ok, false);
-  assert.equal(result.savedPlayers, 1);
-  assert.deepEqual(saved, [trackedPlayers[1].tag]);
-  assert.match(result.message, /1\/2 players refreshed/);
+  assert.equal(result.savedPlayers, trackedPlayers.length - 1);
+  assert.deepEqual(saved, trackedPlayers.slice(1).map((player) => player.tag));
+  assert.match(result.message, /2\/3 players refreshed/);
   assert.ok(!result.message.includes("sensitive upstream token"));
 });
 
@@ -119,7 +119,7 @@ test("optional chest errors retain the fresh profile and battlelog and report a 
       };
     },
   });
-  assert.equal(result.savedPlayers, 2);
+  assert.equal(result.savedPlayers, trackedPlayers.length);
   assert.equal(result.ok, false);
   assert.match(result.message, /Upcoming chests unavailable/);
 });
@@ -169,9 +169,9 @@ test("concurrent manual refreshes share one collection and a later click can fet
   assert.equal(first, second);
   release();
   await Promise.all([first, second]);
-  assert.equal(calls.length, 6);
-  assert.equal(writes, 2);
+  assert.equal(calls.length, trackedPlayers.length * 3);
+  assert.equal(writes, trackedPlayers.length);
   await refreshTrackedPlayers(dependencies);
-  assert.equal(calls.length, 12);
-  assert.equal(writes, 4);
+  assert.equal(calls.length, trackedPlayers.length * 6);
+  assert.equal(writes, trackedPlayers.length * 2);
 });

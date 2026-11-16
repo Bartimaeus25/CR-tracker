@@ -5,9 +5,9 @@ import { createCollectionHandler } from "../src/lib/edge-collection-handler";
 const secret = "test-only-collector-secret-at-least-32-characters";
 const success = {
   ok: true,
-  savedPlayers: 2,
+  savedPlayers: 3,
   newBattles: 1,
-  message: "Both players refreshed. 1 new match.",
+  message: "All 3 players refreshed. 1 new match.",
 };
 
 test("scheduled collector rejects missing and wrong secrets before collection", async () => {
@@ -62,7 +62,7 @@ test("authenticated requests require POST and cannot choose a player or destinat
   assert.equal(response.status, 200);
   assert.equal(calls, 1);
   const body = await response.json();
-  assert.equal(body.savedPlayers, 2);
+  assert.equal(body.savedPlayers, 3);
   assert.equal(body.newBattles, 1);
   assert.equal(body.ok, true);
 });
