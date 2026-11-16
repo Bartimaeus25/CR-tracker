@@ -3,8 +3,8 @@ import test from "node:test";
 import { defaultComparison, resolveComparison, trackedPlayers } from "../src/config/players";
 import { loadDashboardData } from "../src/lib/dashboard/load";
 
-test("comparison defaults to Sprengmeister and Retrum and rejects invalid or duplicate tags", () => {
-  assert.deepEqual(defaultComparison.map((player) => player.tag), ["#2CVGR2R8R", "#8V22J2U02"]);
+test("comparison defaults to Sprengmeister and Bartimaues and rejects invalid or duplicate tags", () => {
+  assert.deepEqual(defaultComparison.map((player) => player.tag), ["#2CVGR2R8R", "#9Q2PQLG0L"]);
   for (const pair of [[undefined, undefined], ["#UNKNOWN", "#8V22J2U02"], ["#2CVGR2R8R", "#2CVGR2R8R"]]) {
     assert.deepEqual(resolveComparison(...pair), defaultComparison);
   }
@@ -41,7 +41,7 @@ test("dashboard filters direct matches, all-opponent matches and profiles to the
   try {
     const defaults = await loadDashboardData();
     assert.deepEqual(defaults.players.map((player) => player.tag), defaultComparison.map((player) => player.tag));
-    assert.deepEqual(defaults.matches.map((match) => match.id), ["1"]);
+    assert.deepEqual(defaults.matches.map((match) => match.id), ["0"]);
     const direct = await loadDashboardData("direct", trackedPlayers[0].tag, trackedPlayers[1].tag);
     assert.deepEqual(direct.matches.map((match) => match.id), ["0"]);
     const all = await loadDashboardData("all", trackedPlayers[0].tag, trackedPlayers[2].tag);
