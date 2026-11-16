@@ -3,7 +3,6 @@ import "@fontsource-variable/geist";
 import "@fontsource/barlow-condensed/600.css";
 import "@fontsource/barlow-condensed/700.css";
 import { DashboardShell } from "@/components/dashboard/shell";
-import { ComparisonSelector } from "@/components/dashboard/comparison-selector";
 import { getComparison } from "@/lib/dashboard/data";
 import "./globals.css";
 
@@ -24,8 +23,7 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body>
-        <DashboardShell>
-          <ComparisonSelector key={comparisonKey} pair={pair.map((player) => player.tag)} />
+        <DashboardShell comparison={pair.map((player) => player.tag)}>
           <div key={comparisonKey}>{children}</div>
         </DashboardShell>
       </body>
