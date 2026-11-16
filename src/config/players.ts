@@ -5,7 +5,7 @@ export const trackedPlayers = [
 ] as const;
 
 export const comparisonCookie = "rivalry-comparison";
-export const defaultComparison = [trackedPlayers[0], trackedPlayers[2]] as const;
+export const defaultComparison = [trackedPlayers[0], trackedPlayers[1]] as const;
 
 /** Only configured, distinct players can be selected. */
 export function resolveComparison(first?: string, second?: string) {
